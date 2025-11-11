@@ -1,0 +1,18 @@
+import { Router } from "express";
+import { getAllDistricts, getDistrictsByType, 
+//   getDistrictWithBlocks,  
+getDistrictMeta, getBlockById, getCombinedBlockReport, getDistrictCombinedReport, updateWrapper, createDistrictMaps, getDistrictMapData, } from "../controller/user.controller.js";
+import { isAuthenticated } from "../middleware/auth.js";
+export const discrictRoute = Router();
+discrictRoute.get("/", isAuthenticated, getAllDistricts);
+discrictRoute.get("/type/:type", isAuthenticated, getDistrictsByType);
+// discrictRoute.get("/:id", getDistrictWithBlocks); // optional
+discrictRoute.get("/:id/meta", isAuthenticated, getDistrictMeta); // NEW – light
+discrictRoute.get("/block/:id", isAuthenticated, getBlockById); // NEW – single block
+discrictRoute.get("/:id/report", isAuthenticated, getDistrictCombinedReport); // NEW – aggregated
+// routes/block.routes.ts
+discrictRoute.post("/combined-by-name", getCombinedBlockReport);
+discrictRoute.get("/get-districts", getAllDistricts);
+discrictRoute.post("/update-district-map", updateWrapper);
+discrictRoute.post("/create-district-map", createDistrictMaps);
+discrictRoute.get("/get-district-map-data", getDistrictMapData);

@@ -1,0 +1,12 @@
+C:\Users\manish keer\Documents\dumps\Dump20251105>
+
+
+mysql -h interchange.proxy.rlwy.net -u root -pJsrfJnQaLZRnjHGpxlNytJsxCjQwOlBG --port=36603 --protocol=TCP railway < vandanyojanadb19__prisma_migrations.sql
+
+mysql -h interchange.proxy.rlwy.net -u root -pJsrfJnQaLZRnjHGpxlNytJsxCjQwOlBG --port=36603 --protocol=TCP railway < vandanyojanadb19_user.sql
+
+mysql -h interchange.proxy.rlwy.net -u root -pJsrfJnQaLZRnjHGpxlNytJsxCjQwOlBG --port=36603 --protocol=TCP railway < vandanyojanadb19_district.sql
+
+mysql -h interchange.proxy.rlwy.net -u root -pJsrfJnQaLZRnjHGpxlNytJsxCjQwOlBG --port=36603 --protocol=TCP railway < vandanyojanadb19_block_vd.sql
+
+mysql -h interchange.proxy.rlwy.net -u root -pJsrfJnQaLZRnjHGpxlNytJsxCjQwOlBG --port=36603 --protocol=TCP railway < vandanyojanadb19_districtblockmap.sql
