@@ -15,33 +15,55 @@ jobs:
       DATAWRAPPER_API_TOKEN: ${{ secrets.DATAWRAPPER_API_TOKEN }}
       DATAWRAPPER_CHART_ID: ${{ secrets.DATAWRAPPER_CHART_ID }}
     steps:
+      # 1️⃣ Checkout repo in the runner (required to get actions workspace)
       - name: Checkout Source
         uses: actions/checkout@v4
-        with:
-          path: vandan-backend
 
+      # 2️⃣ Ensure backend folder exists
+      - name: Ensure Backend Folder Exists
+        run: |
+          mkdir -p /home/ubuntu/vandan-backend
+
+      # 3️⃣ Pull latest code into backend folder
+      - name: Pull Latest Code
+        run: |
+          cd /home/ubuntu/vandan-backend
+          if [ -d ".git" ]; then
+            git reset --hard
+            git clean -fd
+            git pull origin main
+          else
+            git clone https://github.com/<your-username>/<your-repo>.git .
+          fi
+
+      # 4️⃣ Install Node.js dependencies
       - name: Install Dependencies
         run: |
           cd /home/ubuntu/vandan-backend
           npm install
 
+      # 5️⃣ Prisma generate (if using Prisma)
       - name: Prisma Generate
         run: |
           cd /home/ubuntu/vandan-backend
           npm run generate
 
+      # 6️⃣ Build TypeScript
       - name: Build TypeScript
         run: |
           cd /home/ubuntu/vandan-backend
           npm run build
 
+      # 7️⃣ Stop existing PM2 process (optional: for zero-downtime you can replace with reload)
       - name: Stop Existing PM2 Process
         run: pm2 stop vandan_backend || true
 
+      # 8️⃣ Start or restart backend with PM2
       - name: Start Backend with PM2
         run: |
           cd /home/ubuntu/vandan-backend
           pm2 start dist/index.js --name vandan_backend --update-env --env production
 
+      # 9️⃣ Save PM2 process list to auto-start on reboot
       - name: Save PM2 Process List
         run: pm2 save
