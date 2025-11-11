@@ -27,5 +27,12 @@ jobs:
       - name: Delete old container
         run: docker rm -f vandan_backend-container  
       - name: Run Docker Container
-        run: docker run -d -p 6000:6000 \ --name vandan_backend-container \ -e DATABASE_URL="mysql://dbUserNameIndia:dblive123!@database-rds-live.cf82gy88waww.ap-south-1.rds.amazonaws.com/Ranneeti_dev_db" \ -e PORT=6000 \-e JWT_SECRET="manishS" \ -e DATAWRAPPER_API_TOKEN="AzTCKj1XvndOqr665d3gNKPIqD9ZfbXb9HOm0BAtGbvvK1vxWnyedyYgqax9exqM" \ -e DATAWRAPPER_CHART_ID="fGzC6" \ 
+        run: docker run -d -p 6000:6000 \
+  --name vandan_backend-container \
+  -e DATABASE_URL="mysql://dbUserNameIndia:dblive123!@database-rds-live.cf82gy88waww.ap-south-1.rds.amazonaws.com/Ranneeti_dev_db" \
+  -e PORT=6000 \
+  -e JWT_SECRET="manishS" \
+  -e DATAWRAPPER_API_TOKEN="AzTCKj1XvndOqr665d3gNKPIqD9ZfbXb9HOm0BAtGbvvK1vxWnyedyYgqax9exqM" \
+  -e DATAWRAPPER_CHART_ID="fGzC6" \
+  inspire/vandan_backend:latest
 
