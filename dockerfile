@@ -1,14 +1,14 @@
-# Use official Node.js image
-FROM node:22-alpine
+# Use Debian-based Node image for better Prisma compatibility
+FROM node:22
 
-# Set working directory inside container
+# Set working directory
 WORKDIR /app
 
-# Copy package.json and install dependencies
+# Copy package.json and install all dependencies
 COPY package*.json ./
-RUN npm install
+RUN npm install --include=dev
 
-# Copy all project files (including prisma folder)
+# Copy project files
 COPY . .
 
 # Generate Prisma client
