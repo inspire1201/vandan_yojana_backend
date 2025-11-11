@@ -24,46 +24,46 @@ jobs:
         run: |
           mkdir -p /home/ubuntu/vandan-backend
 
-      # 3️⃣ Pull latest code into backend folder
-      - name: Pull Latest Code
+      # 3️⃣ Clone repo into a temporary folder
+      - name: Clone Repo to Temp Folder
         run: |
-          cd /home/ubuntu/vandan-backend
-          if [ -d ".git" ]; then
-            git reset --hard
-            git clean -fd
-            git pull origin main
-          else
-            git clone https://github.com/inspire1201/vandan_yojana_backend .
-          fi
+          cd /home/ubuntu
+          rm -rf vandan-backend-temp
+          git clone https://github.com/inspire1201/vandan_yojana_backend vandan-backend-temp
 
-      # 4️⃣ Install Node.js dependencies
+      # 4️⃣ Sync temp folder to persistent backend folder
+      - name: Sync Code to Backend Folder
+        run: |
+          rsync -a --delete /home/ubuntu/vandan-backend-temp/ /home/ubuntu/vandan-backend/
+
+      # 5️⃣ Install Node.js dependencies
       - name: Install Dependencies
         run: |
           cd /home/ubuntu/vandan-backend
           npm install
 
-      # 5️⃣ Prisma generate (if using Prisma)
+      # 6️⃣ Prisma generate (if using Prisma)
       - name: Prisma Generate
         run: |
           cd /home/ubuntu/vandan-backend
           npm run generate
 
-      # 6️⃣ Build TypeScript
+      # 7️⃣ Build TypeScript
       - name: Build TypeScript
         run: |
           cd /home/ubuntu/vandan-backend
           npm run build
 
-      # 7️⃣ Stop existing PM2 process (optional: for zero-downtime you can replace with reload)
+      # 8️⃣ Stop existing PM2 process (for zero-downtime you can replace with reload)
       - name: Stop Existing PM2 Process
         run: pm2 stop vandan_backend || true
 
-      # 8️⃣ Start or restart backend with PM2
+      # 9️⃣ Start or restart backend with PM2
       - name: Start Backend with PM2
         run: |
           cd /home/ubuntu/vandan-backend
           pm2 start dist/index.js --name vandan_backend --update-env --env production
 
-      # 9️⃣ Save PM2 process list to auto-start on reboot
+      # 🔟 Save PM2 process list to auto-start on reboot
       - name: Save PM2 Process List
         run: pm2 save
