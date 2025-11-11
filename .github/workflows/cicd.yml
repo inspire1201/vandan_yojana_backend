@@ -33,7 +33,7 @@ jobs:
             git clean -fd
             git pull origin main
           else
-            git clone https://github.com/<your-username>/<your-repo>.git .
+            git clone https://github.com/inspire1201/vandan_yojana_backend .
           fi
 
       # 4️⃣ Install Node.js dependencies
