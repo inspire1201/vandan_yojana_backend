@@ -7,11 +7,8 @@ WORKDIR /app
 # Copy only package files first (for caching)
 COPY package*.json ./
 
-# Skip Prisma auto-generate during install
-ENV PRISMA_SKIP_POSTINSTALL_GENERATE=true
-
-# Install dependencies
-RUN npm install --include=dev
+# Disable postinstall during install
+RUN npm install --ignore-scripts --include=dev
 
 # Copy rest of the project (including prisma folder)
 COPY . .
