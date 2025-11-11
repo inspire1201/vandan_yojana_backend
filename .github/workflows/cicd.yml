@@ -6,38 +6,40 @@ on:
       - main
 
 jobs:
-  build:
-    runs-on: ubuntu-latest
+  deploy:
+    runs-on: self-hosted
+    env:
+      DATABASE_URL: ${{ secrets.DATABASE_URL }}
+      PORT: ${{ secrets.PORT }}
+      JWT_SECRET: ${{ secrets.JWT_SECRET }}
+      DATAWRAPPER_API_TOKEN: ${{ secrets.DATAWRAPPER_API_TOKEN }}
+      DATAWRAPPER_CHART_ID: ${{ secrets.DATAWRAPPER_CHART_ID }}
     steps:
       - name: Checkout Source
         uses: actions/checkout@v4
 
-      - name: Login to Docker Hub
-        run: docker login -u ${{ secrets.DOCKER_USERNAME }} -p ${{ secrets.DOCKER_PASSWORD }}
-
-      - name: Build Docker Image
-        run: docker build -t proplerer19/vandan_backend:latest .
-
-      - name: Push Docker Image to Docker Hub
-        run: docker push proplerer19/vandan_backend:latest
-
-  deploy:
-    needs: build
-    runs-on: self-hosted
-    steps:
-      - name: Pull Image from Docker Hub
-        run: docker pull proplerer19/vandan_backend:latest
-
-      - name: Remove Old Container
-        run: docker rm -f vandan_backend-container || true
-
-      - name: Run New Container
+      - name: Install Dependencies
         run: |
-          docker run -d -p 8080:8080 \
-            --name vandan_backend-container \
-            -e DATABASE_URL="mysql://dbUserNameIndia:dblive123!@database-rds-live.cf82gy88waww.ap-south-1.rds.amazonaws.com/Ranneeti_dev_db" \
-            -e PORT=8080 \
-            -e JWT_SECRET="manishS" \
-            -e DATAWRAPPER_API_TOKEN="AzTCKj1XvndOqr665d3gNKPIqD9ZfbXb9HOm0BAtGbvvK1vxWnyedyYgqax9exqM" \
-            -e DATAWRAPPER_CHART_ID="fGzC6" \
-            proplerer19/vandan_backend:latest
+          cd /home/ubuntu/vandan-backend
+          npm install
+
+      - name: Prisma Generate
+        run: |
+          cd /home/ubuntu/vandan-backend
+          npm run generate
+
+      - name: Build TypeScript
+        run: |
+          cd /home/ubuntu/vandan-backend
+          npm run build
+
+      - name: Stop Existing PM2 Process
+        run: pm2 stop vandan_backend || true
+
+      - name: Start Backend with PM2
+        run: |
+          cd /home/ubuntu/vandan-backend
+          pm2 start dist/index.js --name vandan_backend --update-env --env production
+
+      - name: Save PM2 Process List
+        run: pm2 save
