@@ -20,7 +20,7 @@ RUN npx prisma generate
 RUN npm run build
 
 # Expose backend port
-EXPOSE 6000
+EXPOSE 8080
 
 # Start the app
 CMD ["node", "dist/index.js"]
