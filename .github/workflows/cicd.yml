@@ -57,8 +57,11 @@ jobs:
           npm run build
 
       # 8️⃣ Stop existing PM2 process (for zero-downtime you can replace with reload)
-      - name: Stop Existing PM2 Process
-        run: pm2 stop vandan_backend || true
+      - name: Stop and Delete Old PM2 Process
+        run: |
+          pm2 stop vandan_backend || true
+          pm2 delete vandan_backend || true
+
 
       # 9️⃣ Start or restart backend with PM2
       - name: Start Backend with PM2
