@@ -27,13 +27,21 @@ export const getDistrictsByType = async (req: Request, res: Response) => {
       return res.status(400).json({ success: false, message: "Invalid type" });
 
     const districts = await prisma.district_vandan.findMany({
-      where: { districtblockmap_vandan: { some: { block_vd_vandan: { Block_Type: type } } } },
+      where: { 
+        districtblockmap_vandan: { 
+          some: { 
+            block_vd_vandan: { Block_Type: type } 
+          } 
+        } 
+      },
       select: {
         district_id: true,
         district_name: true,
         districtblockmap_vandan: {
           select: {
-            block_vd_vandan: { select: { bolck_Id: true, block_name: true, Block_Type: true } },
+            block_vd_vandan: { 
+              select: { bolck_Id: true, block_name: true, Block_Type: true } 
+            },
           },
         },
       },
@@ -55,14 +63,18 @@ export const getDistrictMeta = async (req: Request, res: Response) => {
         district_id: true,
         district_name: true,
         districtblockmap_vandan: {
-          select: { block_vd_vandan: { select: { bolck_Id: true, block_name: true, Block_Type: true } } },
+          select: { 
+            block_vd_vandan: { 
+              select: { bolck_Id: true, block_name: true, Block_Type: true } 
+            } 
+          },
         },
       },
     });
 
     if (!district) return res.status(404).json({ success: false, message: "Not found" });
 
-    const blocks = district.districtblockmap_vandan.map(m => m.block_vd_vandan);
+    const blocks = district.districtblockmap_vandan.map((m: any) => m.block_vd_vandan);
     res.json({ success: true, data: { ...district, blocks } });
   } catch (e) {
     console.error(e);
@@ -127,7 +139,7 @@ export const getCombinedBlockReport = async (req: Request, res: Response) => {
     // Single pass per block to sum all fields (O(n * m) where m=83, n small)
     for (const block of blocks) {
       for (const field of cFields) {
-        combined[field] += Number(block[field]) || 0;
+        combined[field] += Number((block as any)[field]) || 0;
       }
     }
 
@@ -161,7 +173,7 @@ export const getDistrictCombinedReport = async (req: Request, res: Response) => 
     }
 
     // Build the filter dynamically
-    const blockFilter =
+    const blockFilter: any =
       type === "ALL"
         ? {}
         : {
@@ -179,10 +191,8 @@ export const getDistrictCombinedReport = async (req: Request, res: Response) => 
           include: {
             block_vd_vandan: {
               select: {
-                bolck_Id: true, // Include ID if needed for reference
-                block_name: true, // Optional: if you need block names elsewhere
-                // Dynamically select all 'c' fields; in Prisma, we can list them explicitly for optimization
-                // For brevity, assuming c1-c84; adjust based on exact schema
+                bolck_Id: true,
+                block_name: true,
                 c1: true, c2: true, c3: true, c4: true, c5: true, c6: true, c7: true, c8: true, c9: true, c10: true,
                 c11: true, c12: true, c13: true, c14: true, c15: true, c16: true, c17: true, c18: true, c19: true, c20: true,
                 c21: true, c22: true, c23: true, c24: true, c25: true, c26: true, c27: true, c28: true, c29: true, c30: true,
@@ -191,7 +201,7 @@ export const getDistrictCombinedReport = async (req: Request, res: Response) => 
                 c51: true, c52: true, c53: true, c54: true, c55: true, c56: true, c57: true, c58: true, c59: true, c60: true,
                 c61: true, c62: true, c63: true, c64: true, c65: true, c66: true, c67: true, c68: true, c69: true, c70: true,
                 c71: true, c72: true, c73: true, c74: true, c75: true, c76: true, c77: true, c78: true, c79: true, c80: true,
-                c81: true, c82: true, c83: true,
+                c81: true, c82: true, c83: true, c84: true,
               },
             },
           },
@@ -237,91 +247,14 @@ export const getDistrictCombinedReport = async (req: Request, res: Response) => 
 
 
 
-export const updateWrapperWithCsv = async (req: Request, res: Response) => {
-  const DATAWRAPPER_API_TOKEN =
-    process.env.DATAWRAPPER_API_TOKEN || "YOUR_NEW_TOKEN_HERE";
-  const DATAWRAPPER_CHART_ID =
-    process.env.DATAWRAPPER_CHART_ID || "YOUR_CHART_ID_HERE";
-
-  try {
-    // ⚙️ Ensure file is uploaded
-    if (!req.files || !req.files.csv) {
-      return res.status(400).json({
-        success: false,
-        message: "CSV file is required",
-      });
-    }
-
-    // 🧠 express-fileupload gives you a File object
-    const csvFile = req.files.csv as any;
-
-    // Convert buffer → string
-    const csv = csvFile.data.toString("utf-8");
-
-    // console.log("Received CSV from frontend:\n", csv.slice(0, 200) + "...");
-
-    // 1️⃣ Upload CSV data to Datawrapper
-    const updateRes = await axios.put(
-      `https://api.datawrapper.de/v3/charts/${DATAWRAPPER_CHART_ID}/data`,
-      csv,
-      {
-        headers: {
-          Authorization: `Bearer ${DATAWRAPPER_API_TOKEN}`,
-          "Content-Type": "text/csv",
-        },
-      }
-    );
-
-    console.log("Datawrapper upload status:", updateRes.status);
-
-    if (![200, 204].includes(updateRes.status)) {
-      console.error("Upload failed:", updateRes.status, updateRes.data);
-      throw new Error("Failed to upload chart data");
-    }
-
-    // 2️⃣ Publish updated chart
-    const publishRes = await axios.post(
-      `https://api.datawrapper.de/v3/charts/${DATAWRAPPER_CHART_ID}/publish`,
-      {},
-      {
-        headers: { Authorization: `Bearer ${DATAWRAPPER_API_TOKEN}` },
-      }
-    );
-
-    // console.log("Publish response:", publishRes.status);
-
-    if (publishRes.status !== 200) {
-      console.error("Error publishing chart:", publishRes.status, publishRes.data);
-      throw new Error("Failed to publish chart");
-    }
-
-    // ✅ Success
-    res.json({
-      success: true,
-      message: "Datawrapper chart updated successfully",
-    });
-  } catch (error: any) {
-    console.error(
-      "Error updating Datawrapper chart:",
-      error.response?.data || error.message
-    );
-    res.status(500).json({
-      success: false,
-      message: "Server error while updating Datawrapper chart",
-    });
-  }
-};
 
 
 
-
-
-
-export const updateWrapper = async (req: Request, res: Response) => {
+export const updateDistrictMap = async (req: Request, res: Response) => {
 
 
 const DATAWRAPPER_API_TOKEN = process.env.DATAWRAPPER_API_TOKEN || "YOUR_NEW_TOKEN_HERE";
-  const DATAWRAPPER_CHART_ID = process.env.DATAWRAPPER_CHART_ID || "YOUR_CHART_ID_HERE";
+  const DATAWRAPPER_CHART_ID = process.env.DISTRICT_MAP_ID || "YOUR_CHART_ID_HERE";
   
   try {
     const {data}=req.body;
@@ -340,7 +273,6 @@ const DATAWRAPPER_API_TOKEN = process.env.DATAWRAPPER_API_TOKEN || "YOUR_NEW_TOK
     }
    
 
-
     for (const d of data) {
       
  const updateRes=  await prisma.district_map_data_vandan.updateMany({
@@ -350,15 +282,15 @@ const DATAWRAPPER_API_TOKEN = process.env.DATAWRAPPER_API_TOKEN || "YOUR_NEW_TOK
       district_value: parseInt(d.value,10),
     },
   });
-  // console.log(`Updated district ${d.district} with value ${d.value}`);
-  // console.log("count of update district map data  ",updateRes)
+  console.log(`Updated district ${d.district} with value ${d.value}`);
+  console.log("count of update district map data  ",updateRes)
 }
 
     
     // Convert to CSV
     let csv = "District,Value\n" + data.map((d: any) => `${d.district},${d.value}`).join("\n");
 
-    // console.log("Generated CSV:\n", csv);
+    console.log("Generated CSV:\n", csv);
 
     // Upload new data
     const updateRes = await axios.put(
@@ -372,7 +304,7 @@ const DATAWRAPPER_API_TOKEN = process.env.DATAWRAPPER_API_TOKEN || "YOUR_NEW_TOK
       }
     );
 
-    console.log("Datawrapper upload status:", updateRes.status);
+    // console.log("Datawrapper upload status:", updateRes.status);
     if (![200, 204].includes(updateRes.status)) {
       console.error("Upload failed:", updateRes.status, updateRes.data);
       throw new Error("Failed to upload chart data");
@@ -395,7 +327,170 @@ const DATAWRAPPER_API_TOKEN = process.env.DATAWRAPPER_API_TOKEN || "YOUR_NEW_TOK
 
     res.json({ success: true, message: "Datawrapper chart updated successfully" });
   } catch (error: any) {
-    console.error("Error updating Datawrapper chart:", error.response?.data || error.message);
+    console.error("Error updating the district map chart:", error);
+    res.status(500).json({ success: false, message: "Server error" });
+  }
+
+}
+
+
+export const updateVidhanSabhaMap = async (req: Request, res: Response) =>{
+const DATAWRAPPER_API_TOKEN = process.env.DATAWRAPPER_API_TOKEN || "YOUR_NEW_TOKEN_HERE";
+  const DATAWRAPPER_CHART_ID = process.env.VIDHANSABHA_MAP_ID || "YOUR_CHART_ID_HERE";
+  
+  try {
+    const {data}=req.body;
+    // console.log("data",data);
+    if(!data){
+      return res.json({
+        message:"data not found"
+      })
+    }
+
+    if(data.length<=0){
+      return res.status(404).json({
+           succes:false,
+           message:"data not found"
+      })
+    }
+   
+
+
+    for (const d of data) {
+ const updateRes=  await prisma.assembly_map_data_vandan.updateMany({
+    where: {assembly_name: d.assembly}, 
+    data: {
+      assembly_name: d.assembly,
+      assembly_value: parseInt(d.value,10),
+    },
+  });
+  // console.log(`Updated assembly ${d.assembly} with value ${d.value}`);
+  // console.log("count of update assembly map data  ",updateRes)
+}
+
+    
+    // Convert to CSV
+    let csv = "Assembly_name,Assembly_value\n" + data.map((d: any) => `${d.assembly},${d.value}`).join("\n");
+
+    // console.log("Generated CSV:\n", csv);
+
+    // Upload new data
+    const updateRes = await axios.put(
+      `https://api.datawrapper.de/v3/charts/${DATAWRAPPER_CHART_ID}/data`,
+      csv,
+      {
+        headers: {
+          Authorization: `Bearer ${DATAWRAPPER_API_TOKEN}`,
+          "Content-Type": "text/csv",
+        },
+      }
+    );
+
+    // console.log("Datawrapper upload status:", updateRes.status);
+    if (![200, 204].includes(updateRes.status)) {
+      console.error("Upload failed:", updateRes.status, updateRes.data);
+      throw new Error("Failed to upload chart data");
+    }
+
+    // Publish updated chart
+    const publishRes = await axios.post(
+      `https://api.datawrapper.de/v3/charts/${DATAWRAPPER_CHART_ID}/publish`,
+      {},
+      {
+        headers: { Authorization: `Bearer ${DATAWRAPPER_API_TOKEN}` },
+      }
+    );
+
+    // console.log("Publish response:", publishRes.status);
+    if (publishRes.status !== 200) {
+      console.error("Error publishing chart:", publishRes.status, publishRes.data);
+      throw new Error("Failed to publish chart");
+    }
+
+    res.json({ success: true, message: "Assembly Map updated successfully" });
+  } catch (error: any) {
+    console.error("Error updating Assembly Map ", error.response?.data || error.message);
+    res.status(500).json({ success: false, message: "Server error" });
+  }
+
+}
+
+export const updateLokSabhaMap = async (req: Request, res: Response) =>{
+const DATAWRAPPER_API_TOKEN = process.env.DATAWRAPPER_API_TOKEN || "YOUR_NEW_TOKEN_HERE";
+  const DATAWRAPPER_CHART_ID = process.env.LOKSABHA_MAP_ID || "YOUR_CHART_ID_HERE";
+  
+  try {
+    const {data}=req.body;
+    // console.log("data",data);
+    if(!data){
+      return res.json({
+        message:"data not found"
+      })
+    }
+
+    if(data.length<=0){
+      return res.status(404).json({
+           succes:false,
+           message:"data not found"
+      })
+    }
+   
+
+
+    for (const d of data) {
+ const updateRes=  await prisma.loksabha_map_data_vandan.updateMany({
+    where: {lokSabha_name: d.constituency_name}, 
+    data: {
+      lokSabha_name: d.constituency_name,
+      lokSabha_value: parseInt(d.value,10),
+    },
+  });
+  // console.log(`Updated assembly ${d.constituency_name} with value ${d.value}`);
+  // console.log("count of update assembly map data  ",updateRes)
+}
+
+    
+    // Convert to CSV
+    let csv = "LokSabha_name,LokSabha_value\n" + data.map((d: any) => `${d.constituency_name},${d.value}`).join("\n");
+
+    // console.log("Generated CSV:\n", csv);
+
+    // Upload new data
+    const updateRes = await axios.put(
+      `https://api.datawrapper.de/v3/charts/${DATAWRAPPER_CHART_ID}/data`,
+      csv,
+      {
+        headers: {
+          Authorization: `Bearer ${DATAWRAPPER_API_TOKEN}`,
+          "Content-Type": "text/csv",
+        },
+      }
+    );
+
+    // console.log("Datawrapper upload status:", updateRes.status);
+    if (![200, 204].includes(updateRes.status)) {
+      console.error("Upload failed:", updateRes.status, updateRes.data);
+      throw new Error("Failed to upload chart data");
+    }
+
+    // Publish updated chart
+    const publishRes = await axios.post(
+      `https://api.datawrapper.de/v3/charts/${DATAWRAPPER_CHART_ID}/publish`,
+      {},
+      {
+        headers: { Authorization: `Bearer ${DATAWRAPPER_API_TOKEN}` },
+      }
+    );
+
+    // console.log("Publish response:", publishRes.status);
+    if (publishRes.status !== 200) {
+      console.error("Error publishing chart:", publishRes.status, publishRes.data);
+      throw new Error("Failed to publish chart");
+    }
+
+    res.json({ success: true, message: "Assembly Map updated successfully" });
+  } catch (error: any) {
+    console.error("Error updating Assembly Map ", error.response?.data || error.message);
     res.status(500).json({ success: false, message: "Server error" });
   }
 
@@ -446,7 +541,7 @@ export const createDistrictMaps = async (req: any, res: any) => {
 
     // Generate CSV from input data (matches structure)
     const csv = 'District,Value\n' + mapsData.map((d: any) => `${d.District},${d.Value}`).join('\n');
-    console.log('Generated CSV:\n', csv);
+    // console.log('Generated CSV:\n', csv);
 
     // Upload new data
     const updateRes = await axios.put(
@@ -503,7 +598,7 @@ export const createDistrictMaps = async (req: any, res: any) => {
 export const getDistrictMapData = async (req: any, res: any) => {
   try {
     const DATAWRAPPER_API_TOKEN = process.env.DATAWRAPPER_API_TOKEN;
-    const DATAWRAPPER_CHART_ID = process.env.DATAWRAPPER_CHART_ID;
+    const DATAWRAPPER_CHART_ID = process.env.DISTRICT_MAP_ID;
 
     if (!DATAWRAPPER_API_TOKEN || !DATAWRAPPER_CHART_ID) {
       throw new Error('Missing required environment variables: DATAWRAPPER_API_TOKEN or DATAWRAPPER_CHART_ID');
@@ -517,6 +612,150 @@ export const getDistrictMapData = async (req: any, res: any) => {
 
     // Generate CSV from input data (matches structure)
     const csv = 'District,Value\n' + data.map((d: any) => `${d.district_name},${d.district_value}`).join('\n');
+    // console.log('Generated CSV:\n', csv);
+
+
+    // Upload new data
+    const updateRes = await axios.put(
+      `https://api.datawrapper.de/v3/charts/${DATAWRAPPER_CHART_ID}/data`,
+      csv,
+      {
+        headers: {
+          Authorization: `Bearer ${DATAWRAPPER_API_TOKEN}`,
+          'Content-Type': 'text/csv',
+        },
+      }
+    );
+
+    // console.log('Datawrapper upload status:', updateRes.status);
+    if (![200, 204].includes(updateRes.status)) {
+      console.error('Upload failed:', updateRes.status, updateRes.data);
+      throw new Error(`Failed to upload chart data: ${updateRes.status}`);
+    }
+
+    // Publish updated chart
+    const publishRes = await axios.post(
+      `https://api.datawrapper.de/v3/charts/${DATAWRAPPER_CHART_ID}/publish`,
+      {},
+      {
+        headers: { Authorization: `Bearer ${DATAWRAPPER_API_TOKEN}` },
+      }
+    );
+
+    // console.log('Publish response:', publishRes.status);
+    if (publishRes.status !== 200) {
+      console.error('Error publishing chart:', publishRes.status, publishRes.data);
+      throw new Error(`Failed to publish chart: ${publishRes.status}`);
+    }
+
+    res.json({ 
+      success: true, 
+      message: 'District get successfully',
+    //  data:{data,csv}
+    });
+
+  } catch (error: any) {
+    console.error('Error in createDistrictMaps:', error.message || error);
+    return res.status(500).json({ 
+      success: false, 
+      message: error.message || 'Server error' 
+    });
+  } finally {
+    // Optional: Disconnect Prisma if in a long-lived app
+    // await prisma.$disconnect();
+  }
+};
+
+
+export const getAssemblyMapData = async (req: any, res: any) => {
+  try {
+    const DATAWRAPPER_API_TOKEN = process.env.DATAWRAPPER_API_TOKEN;
+    const DATAWRAPPER_CHART_ID = process.env.VIDHANSABHA_MAP_ID;
+
+    if (!DATAWRAPPER_API_TOKEN || !DATAWRAPPER_CHART_ID) {
+      throw new Error('Missing required environment variables: DATAWRAPPER_API_TOKEN or DATAWRAPPER_CHART_ID');
+    }
+
+
+
+    const data = await prisma.assembly_map_data_vandan.findMany({
+
+    });
+
+    // Generate CSV from input data (matches structure)
+    const csv = 'Assembly_name,Assembly_value\n' + data.map((d: any) => `${d.assembly_name},${d.assembly_value}`).join('\n');
+    // console.log('Generated CSV:\n', csv);
+
+
+    // Upload new data
+    const updateRes = await axios.put(
+      `https://api.datawrapper.de/v3/charts/${DATAWRAPPER_CHART_ID}/data`,
+      csv,
+      {
+        headers: {
+          Authorization: `Bearer ${DATAWRAPPER_API_TOKEN}`,
+          'Content-Type': 'text/csv',
+        },
+      }
+    );
+
+    // console.log('Datawrapper upload status:', updateRes.status);
+    if (![200, 204].includes(updateRes.status)) {
+      console.error('Upload failed:', updateRes.status, updateRes.data);
+      throw new Error(`Failed to upload chart data: ${updateRes.status}`);
+    }
+
+    // Publish updated chart
+    const publishRes = await axios.post(
+      `https://api.datawrapper.de/v3/charts/${DATAWRAPPER_CHART_ID}/publish`,
+      {},
+      {
+        headers: { Authorization: `Bearer ${DATAWRAPPER_API_TOKEN}` },
+      }
+    );
+
+    // console.log('Publish response:', publishRes.status);
+    if (publishRes.status !== 200) {
+      console.error('Error publishing chart:', publishRes.status, publishRes.data);
+      throw new Error(`Failed to publish chart: ${publishRes.status}`);
+    }
+
+    res.json({ 
+      success: true, 
+      message: 'District get successfully',
+    //  data:{data,csv}
+    });
+
+  } catch (error: any) {
+    console.error('Error in createDistrictMaps:', error.message || error);
+    return res.status(500).json({ 
+      success: false, 
+      message: error.message || 'Server error' 
+    });
+  } finally {
+    // Optional: Disconnect Prisma if in a long-lived app
+    // await prisma.$disconnect();
+  }
+};
+
+
+export const getLokSabhaMapData = async (req: any, res: any) => {
+  try {
+    const DATAWRAPPER_API_TOKEN = process.env.DATAWRAPPER_API_TOKEN;
+    const DATAWRAPPER_CHART_ID = process.env.LOKSABHA_MAP_ID;
+
+    if (!DATAWRAPPER_API_TOKEN || !DATAWRAPPER_CHART_ID) {
+      throw new Error('Missing required environment variables: DATAWRAPPER_API_TOKEN or DATAWRAPPER_CHART_ID');
+    }
+
+
+
+    const data = await prisma.loksabha_map_data_vandan.findMany({
+
+    });
+
+    // Generate CSV from input data (matches structure)
+    const csv = 'LokSabha_name,LokSabha_value\n' + data.map((d: any) => `${d.lokSabha_name},${d.lokSabha_value}`).join('\n');
     // console.log('Generated CSV:\n', csv);
 
 

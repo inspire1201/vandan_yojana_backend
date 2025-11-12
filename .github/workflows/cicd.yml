@@ -13,7 +13,9 @@ jobs:
       PORT: ${{ secrets.PORT }}
       JWT_SECRET: ${{ secrets.JWT_SECRET }}
       DATAWRAPPER_API_TOKEN: ${{ secrets.DATAWRAPPER_API_TOKEN }}
-      DATAWRAPPER_CHART_ID: ${{ secrets.DATAWRAPPER_CHART_ID }}
+      DISTRICT_MAP_ID: ${{ secrets.DISTRICT_MAP_ID }}
+      VIDHANSABHA_MAP_ID: ${{ secrets.VIDHANSABHA_MAP_ID }}
+      LOKSABHA_MAP_ID: ${{ secrets.LOKSABHA_MAP_ID }}
     steps:
       # 1️⃣ Checkout repo in the runner (required to get actions workspace)
       - name: Checkout Source

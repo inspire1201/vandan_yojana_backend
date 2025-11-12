@@ -56,13 +56,6 @@ model app_config {
   @@index([app_code], map: "app_code")
 }
 
-model assembly_map_data_vandan {
-  id             Int    @id @default(autoincrement())
-  assembly_id    Int
-  assembly_name  String
-  assembly_value Int
-}
-
 model block_vd_vandan {
   bolck_Id                Int                        @id
   Block_Type              block_vd_vandan_Block_Type
@@ -243,13 +236,6 @@ model events {
   event_updates   event_updates[]
   event_users     event_users[]
   event_views     event_views[]
-}
-
-model loksabha_map_data_vandan {
-  id             Int    @id @default(autoincrement())
-  lokSabha_id    Int
-  lokSabha_name  String
-  lokSabha_value Int
 }
 
 /// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments

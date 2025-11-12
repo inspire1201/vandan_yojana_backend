@@ -8,10 +8,14 @@ import {
   
   getCombinedBlockReport,
   getDistrictCombinedReport,
-  updateWrapper,
-  updateWrapperWithCsv,
+  
   createDistrictMaps,
   getDistrictMapData,
+  updateDistrictMap,
+  updateVidhanSabhaMap,
+  getAssemblyMapData,
+  updateLokSabhaMap,
+  getLokSabhaMapData,
 } from "../controller/user.controller.js";
 import { isAuthenticated } from "../middleware/auth.js";
 
@@ -29,6 +33,14 @@ discrictRoute.get("/:id/report", isAuthenticated,getDistrictCombinedReport); // 
 discrictRoute.post("/combined-by-name", getCombinedBlockReport);
 
 discrictRoute.get("/get-districts",getAllDistricts);
-discrictRoute.post("/update-district-map",updateWrapper);
+discrictRoute.post("/update-district-map",updateDistrictMap);
 discrictRoute.post("/create-district-map",createDistrictMaps);
 discrictRoute.get("/get-district-map-data",getDistrictMapData);
+
+// Vidhan Sabha Map
+discrictRoute.post("/update-assembly-map",updateVidhanSabhaMap);
+discrictRoute.get("/get-assembly-map-data",getAssemblyMapData);
+
+// Lok Shabha
+discrictRoute.post("/update-loksabha-map",updateLokSabhaMap);
+discrictRoute.get("/get-loksabha-map-data",getLokSabhaMapData);
