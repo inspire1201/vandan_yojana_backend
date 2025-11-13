@@ -1,3 +1,26 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+model assembly_map_data_vandan {
+  id             Int    @id @default(autoincrement())
+  assembly_id    Int
+  assembly_name  String
+  assembly_value Int
+}
+
+model assembly_vandan {
+  id            Int                 @id @default(autoincrement())
+  assembly_id   Int                 @unique
+  assembly_name String
+  booths        cgbooth25_vandan[]  // relation
+}
+
 
 model block_vd_vandan {
   bolck_Id   Int                        @id
@@ -91,6 +114,16 @@ model block_vd_vandan {
   districtblockmap_vandan districtblockmap_vandan[]
 }
 
+model cgbooth25_vandan {
+  id         Int    @id @default(autoincrement())
+  booth_no   Int
+  booth_name String
+  assemblyId Int
+  assembly   assembly_vandan @relation(fields: [assemblyId], references: [id])
+
+  @@index([assemblyId])
+}
+
 model district_map_data_vandan {
   id             Int    @id @default(autoincrement())
   district_id    Int
@@ -118,25 +151,18 @@ model districtblockmap_vandan {
   @@index([districtId], map: "DistrictBlockMap_districtId_idx")
 }
 
-model user_vandan {
-  id   Int              @id @default(autoincrement())
-  code String           @unique(map: "User_code_key") @db.VarChar(255)
-  name String
-  role user_vandan_role @default(DISTRICT_USER)
-}
-
-model assembly_map_data_vandan {
-  id             Int    @id @default(autoincrement())
-  assembly_id    Int
-  assembly_name  String
-  assembly_value Int
-}
-
 model loksabha_map_data_vandan {
   id             Int    @id @default(autoincrement())
   lokSabha_id    Int
   lokSabha_name  String
   lokSabha_value Int
+}
+
+model user_vandan {
+  id   Int              @id @default(autoincrement())
+  code String           @unique(map: "User_code_key") @db.VarChar(255)
+  name String
+  role user_vandan_role @default(DISTRICT_USER)
 }
 
 enum block_vd_vandan_Block_Type {

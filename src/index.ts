@@ -7,8 +7,9 @@ import fileUpload from "express-fileupload";
 import cors from "cors";
 
 import prisma from "./prisma.js";  
-import { discrictRoute } from "./router/discrict.route.js";
+
 import { authRoute } from "./router/auth.route.js";
+import { userRoute } from "./router/user.route.js";
 // import updateBlocks from "./config/updateblocks.utils.js";
 
 const app = express();
@@ -36,7 +37,7 @@ app.use(cors(corsOptions));
 
 
 app.use("/api/v1/auth",authRoute)
-app.use("/api/v1/districts",discrictRoute)
+app.use("/api/v1/districts",userRoute)
 
 
 app.get("/", (req:any, res:any) => {

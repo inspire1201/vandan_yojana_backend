@@ -809,3 +809,113 @@ export const getLokSabhaMapData = async (req: any, res: any) => {
     // await prisma.$disconnect();
   }
 };
+
+
+
+
+export const getAllBoothsData = async (req: any, res: any) => {
+ try {
+
+  const boothdata =  await prisma.cgbooth25_vandan.findMany({});
+
+  if(!boothdata){
+    return res.json({
+      message:"could not get the both data ",
+    })
+  }
+
+  return res.json({
+    message:"booth data got successfully",
+    data:boothdata
+  })
+}
+  catch (error) {
+  console.log("could not get the data booth data")
+  return res.json({
+    message:"could not get the both data ",
+   
+  })
+ }  
+
+}
+
+
+
+export const getAllAssemblyData = async (req: any, res: any) => {
+ try {
+
+  const assemblyData = await prisma.assembly_vandan.findMany({
+  include: {
+    _count: {
+      select: { booths: true },  // counts number of booths for each assembly
+    },
+  },
+});
+
+
+
+
+  if(!assemblyData){
+    return res.json({
+      message:"could not get the assembly data ",
+    })
+  }
+
+  return res.json({
+    message:"assembly data got successfully",
+    data:assemblyData
+  })
+}
+  catch (error) {
+  console.log("could not get the data assembly data")
+  return res.json({
+    message:"could not get the assembly data ",
+   
+  })
+ }  
+
+}
+
+
+
+export const getAllboothDataByAssembly = async (req: any, res: any) => {
+ 
+   try {
+
+    const { assemblyId } = req.params;
+    // console.log("assemblyId",assemblyId)
+
+
+      
+    const allBooths= await prisma.cgbooth25_vandan.findMany({
+      where:{
+        assemblyId:parseInt(assemblyId)
+      }
+    });
+
+    // console.log("allBooths",allBooths)
+
+    if(!allBooths){
+      return res.json({
+        succes:false,
+        message:"could not get the data",
+      })
+    }
+
+    return res.json({
+
+      succes:true,
+      message:"data got successfully",
+      data:allBooths
+    })
+
+
+
+   } catch (error) {
+    console.log("could not get the data hello",error)
+         return res.json({
+          succes:false,
+           message: "could not get the data hello",
+         });
+   }
+ }
