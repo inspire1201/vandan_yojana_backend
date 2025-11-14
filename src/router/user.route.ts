@@ -19,6 +19,8 @@ import {
   getAllBoothsData,
   getAllAssemblyData,
   getAllboothDataByAssembly,
+  updateBooths,
+  bulkUpdateBooths,
 } from "../controller/user.controller.js";
 import { isAuthenticated } from "../middleware/auth.js";
 
@@ -53,3 +55,6 @@ userRoute.get("/get-loksabha-map-data",getLokSabhaMapData);
 userRoute.get("/get-all-boths",getAllBoothsData);
 userRoute.get("/get-all-assembly",getAllAssemblyData);
 userRoute.get("/get-all-booth-by-assembly/:assemblyId",getAllboothDataByAssembly);
+// update the booth data
+// userRoute.put("/bulk-update-booths", updateBooths);
+userRoute.put("/bulk-update-booths", bulkUpdateBooths);

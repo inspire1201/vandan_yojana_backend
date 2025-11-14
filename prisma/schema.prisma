@@ -114,15 +114,26 @@ model block_vd_vandan {
   districtblockmap_vandan districtblockmap_vandan[]
 }
 
+
 model cgbooth25_vandan {
-  id         Int    @id @default(autoincrement())
-  booth_no   Int
-  booth_name String
-  assemblyId Int
-  assembly   assembly_vandan @relation(fields: [assemblyId], references: [id])
+  id              Int                @id @default(autoincrement())
+  booth_no        Int
+  booth_name      String
+  assemblyId      Int
+  isBla2          bla_flag_enum?
+  bla2_name       String?
+  bla2_mobile_no  String?
+  slr_per         Decimal?           @db.Decimal(5,2)
+  update_date     DateTime?
+  update_count    Int?
+
+  assembly        assembly_vandan     @relation(fields: [assemblyId], references: [id])   
 
   @@index([assemblyId])
 }
+
+
+
 
 model district_map_data_vandan {
   id             Int    @id @default(autoincrement())
@@ -174,4 +185,10 @@ enum user_vandan_role {
   DISTRICT_USER
   VIDHANSABHA_USER
   ADMIN
+}
+
+enum bla_flag_enum{
+  VALUE_0
+  VALUE_1
+  VALUE_2
 }

@@ -919,3 +919,212 @@ export const getAllboothDataByAssembly = async (req: any, res: any) => {
          });
    }
  }
+
+
+
+/**
+ * Interface for the expected request body for updating the booth.
+ */
+interface BoothUpdatePayload {
+  bla2_name?: string;
+  bla2_mobile_no?: string;
+  slr_per?: number | string; // Allows number or string from client
+}
+
+// --- Controller Function ---
+
+/**
+ * @desc Updates a single booth record based on the provided fields.
+ * @route PUT /api/booths/:boothId
+ * @access Private
+ */
+// export const updateBooths= async (req: Request, res: Response)=> {
+//   const { boothId } = req.params;
+//   const updatePayload: BoothUpdatePayload = req.body;
+
+//   // 1. Initial Validation
+//   if (!boothId || isNaN(Number(boothId))) {
+//     return res.status(400).json({ error: 'Invalid booth ID provided.' });
+//   }
+
+//   // 2. Build the dynamic update object
+//   const fieldsToUpdate: any = {};
+//   let updateNecessary = false;
+
+//   // Check and process 'bla2_name'
+//   if (updatePayload.bla2_name !== undefined) {
+//     const name = updatePayload.bla2_name.trim();
+//     // Maps empty string to null (since the Prisma schema allows null)
+//     fieldsToUpdate.bla2_name = name === '' ? null : name;
+//     updateNecessary = true;
+//   }
+
+//   // Check and process 'bla2_mobile_no'
+//   if (updatePayload.bla2_mobile_no !== undefined) {
+//     const cleanedMobile = String(updatePayload.bla2_mobile_no).replace(/[^0-9]/g, '');
+//     // Maps empty or non-digit string to null
+//     fieldsToUpdate.bla2_mobile_no = cleanedMobile === '' ? null : cleanedMobile;
+//     updateNecessary = true;
+//   }
+
+//   // Check and process 'slr_per'
+//   if (updatePayload.slr_per !== undefined) {
+//     const numericSlr = Number(updatePayload.slr_per);
+    
+//     if (!isNaN(numericSlr) && numericSlr >= 0 && numericSlr <= 100) {
+//       // Valid number between 0 and 100
+//       fieldsToUpdate.slr_per = numericSlr;
+//       updateNecessary = true;
+//     } else if (String(updatePayload.slr_per).trim() === '') {
+//       // Empty string provided, so set to null to clear the database field
+//       fieldsToUpdate.slr_per = null;
+//       updateNecessary = true;
+//     } else {
+//       // Invalid input (e.g., text, number outside range)
+//       return res.status(400).json({ error: 'Invalid value for SLR Percentage (must be 0-100 or empty to clear).' });
+//     }
+//   }
+
+//   // If no valid fields were provided for update, stop here.
+//   if (!updateNecessary) {
+//     return res.status(400).json({ error: 'No valid update fields provided. Nothing to update.' });
+//   }
+
+//   // 3. Perform Transactional Update
+//   try {
+//     const updatedBooth = await prisma.$transaction(async (tx) => {
+//       // We don't need to explicitly find the booth first if we rely on update's where clause,
+//       // but it helps ensure better error messaging (404 vs 500).
+//       // However, for optimization, we skip the `findUnique` and rely on Prisma's update.
+      
+//       const result = await tx.cgbooth25_vandan.update({
+//         where: { id: Number(boothId) },
+//         data: {
+//           ...fieldsToUpdate, // ONLY fields provided in the request are here
+          
+//           // CRITICAL: Metadata fields are always updated explicitly
+//           update_date: new Date(),
+//           update_count: {
+//             increment: 1,
+//           },
+//         },
+//       });
+
+//       return result;
+//     });
+
+//     // 4. Send Success Response
+//     return res.status(200).json({
+//       message: 'Booth updated successfully.',
+//       booth: updatedBooth,
+//     });
+    
+//   } catch (error: any) {
+//     console.error(`Error updating booth ${boothId}:`, error);
+
+//     // Prisma throws P2025 when a record to be updated/deleted does not exist.
+//     if (error.code === 'P2025') {
+//       return res.status(404).json({ error: 'Booth not found. Update failed.' });
+//     }
+
+//     // Generic error response
+//     return res.status(500).json({ error: 'Failed to update booth data due to a server error.' });
+//   }
+// }
+
+
+
+// Assume imports for prisma, Request, Response, and BoothUpdatePayload are available
+
+export const bulkUpdateBooths = async (req: Request, res: Response) => {
+    // 1. Validate the incoming array structure
+    const { updates } = req.body; // Expecting { updates: [{ boothId: 1, ... }, ...] }
+    console.log("payload in bulkupdatebooths",req.body)
+
+    if (!Array.isArray(updates) || updates.length === 0) {
+        return res.status(400).json({ error: 'Request body must contain a non-empty array of booth objects under the "updates" property.' });
+    }
+
+    // 2. Prepare an array of update promises to execute in a single transaction
+    const transactionOperations = updates.map((updatePayload: any) => {
+        const { boothId, ...fields } = updatePayload;
+
+        if (!boothId || isNaN(Number(boothId))) {
+            // Log or handle invalid ID, but typically, we skip it or validate structure upfront
+            return null; 
+        }
+
+        const fieldsToUpdate: any = {};
+        let updateNecessary = false;
+
+        // --- DYNAMIC FIELD PROCESSING (Optimized for Bulk) ---
+        
+        // a. Process 'bla2_name'
+        if (fields.bla2_name !== undefined) {
+            const name = String(fields.bla2_name).trim();
+            fieldsToUpdate.bla2_name = name === '' ? null : name;
+            updateNecessary = true;
+        }
+
+        // b. Process 'bla2_mobile_no'
+        if (fields.bla2_mobile_no !== undefined) {
+            const cleanedMobile = String(fields.bla2_mobile_no).replace(/[^0-9]/g, '');
+            fieldsToUpdate.bla2_mobile_no = cleanedMobile === '' ? null : cleanedMobile;
+            updateNecessary = true;
+        }
+
+        // c. Process 'slr_per'
+        if (fields.slr_per !== undefined) {
+            const numericSlr = Number(fields.slr_per);
+            
+            if (!isNaN(numericSlr) && numericSlr >= 0 && numericSlr <= 100) {
+                fieldsToUpdate.slr_per = numericSlr;
+                updateNecessary = true;
+            } else if (String(fields.slr_per).trim() === '') {
+                fieldsToUpdate.slr_per = null;
+                updateNecessary = true;
+            } else {
+                // In a bulk operation, it's often better to skip bad records than fail the whole transaction
+                console.warn(`Skipping boothId ${boothId}: Invalid SLR percentage.`);
+                return null;
+            }
+        }
+        
+        // If no valid fields were intended for update, skip the database operation
+        if (!updateNecessary) {
+            return null;
+        }
+
+        // --- PRISMA UPDATE OPERATION ---
+        return prisma.cgbooth25_vandan.update({
+            where: { id: Number(boothId) },
+            data: {
+                ...fieldsToUpdate,
+                update_date: new Date(),
+                update_count: { increment: 1 },
+            },
+        });
+    }).filter(op => op !== null); // Remove any invalid or skipped operations
+
+    // Check if any valid updates remain after filtering
+    if (transactionOperations.length === 0) {
+        return res.status(200).json({ message: 'No valid changes detected or fields provided.' });
+    }
+
+    // 3. Execute all updates in a single transaction for atomicity
+    try {
+        const updatedBooths = await prisma.$transaction(transactionOperations);
+
+        // 4. Send Success Response
+        return res.status(200).json({
+            message: `${updatedBooths.length} booths updated successfully.`,
+            count: updatedBooths.length,
+        });
+
+    } catch (error: any) {
+        console.error('Error during bulk booth update transaction:', error);
+
+        // Handle errors that cause the entire transaction to fail (e.g., database connection)
+        return res.status(500).json({ error: 'Failed to complete bulk update due to a server error.' });
+    }
+}
