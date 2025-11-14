@@ -19,7 +19,7 @@ import {
   getAllBoothsData,
   getAllAssemblyData,
   getAllboothDataByAssembly,
-  updateBooths,
+  // updateBooths,
   bulkUpdateBooths,
 } from "../controller/user.controller.js";
 import { isAuthenticated } from "../middleware/auth.js";
