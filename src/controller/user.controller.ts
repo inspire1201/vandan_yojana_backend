@@ -3,7 +3,16 @@ import axios from "axios";
 import { Request, Response } from "express";
 import prisma from "../prisma.js";
 import { C_COLUMNS, AVG_FIELDS, selectBlockC } from "../utils/prisma/selectc.js";
+import { bla_flag_enum } from "@prisma/client";
 type BlockType = "R" | "U";
+
+
+interface BoothUpdatePayload {
+  bla2_name?: string;
+  bla2_mobile_no?: string;
+  slr_per?: number | string; // Allows number or string from client
+  isBla2?: string;
+}
 
 /* ---------- 1. All Districts ---------- */
 export const getAllDistricts = async (_: Request, res: Response) => {
@@ -841,41 +850,157 @@ export const getAllBoothsData = async (req: any, res: any) => {
 
 
 
-export const getAllAssemblyData = async (req: any, res: any) => {
- try {
+// export const getAllAssemblyData = async (req: any, res: any) => {
+//  try {
 
-  const assemblyData = await prisma.assembly_vandan.findMany({
-  include: {
-    _count: {
-      select: { booths: true },  // counts number of booths for each assembly
-    },
-  },
-});
-
-
+//   const assemblyData = await prisma.assembly_vandan.findMany({
+//   include: {
+//     _count: {
+//       select: { booths: true },  // counts number of booths for each assembly
+//     },
+//   },
+// });
 
 
-  if(!assemblyData){
-    return res.json({
-      message:"could not get the assembly data ",
-    })
-  }
 
-  return res.json({
-    message:"assembly data got successfully",
-    data:assemblyData
-  })
-}
-  catch (error) {
-  console.log("could not get the data assembly data")
-  return res.json({
-    message:"could not get the assembly data ",
+
+//   if(!assemblyData){
+//     return res.json({
+//       message:"could not get the assembly data ",
+//     })
+//   }
+
+//   return res.json({
+//     message:"assembly data got successfully",
+//     data:assemblyData
+//   })
+// }
+//   catch (error) {
+//   console.log("could not get the data assembly data")
+//   return res.json({
+//     message:"could not get the assembly data ",
    
-  })
- }  
+//   })
+//  }  
 
-}
+// }
 
+
+// This will be a cleaner and more efficient query to get all the counts
+export const getAllAssemblyData = async (req: any, res: any) => {
+  try {
+    // 1. Get all Assembly data with the total number of booths
+    const assemblyData = await prisma.assembly_vandan.findMany({
+      select: {
+        id: true,
+        assembly_id: true,
+        assembly_name: true,
+        _count: {
+          select: { booths: true },
+        },
+      },
+    });
+
+    // 2. Get the aggregated summary counts for all booths
+    const boothSummary = await prisma.cgbooth25_vandan.groupBy({
+      by: ['assemblyId', 'isBla2'], // Group by both assembly and the BLA flag
+      where: {
+        // Only consider records that are not null for the BLA flag, 
+        // or records where a bla2_name is present (for the BLA name count)
+        OR: [
+          { isBla2: { not: null } },
+          { bla2_name: { not: null } }
+        ]
+      },
+      _count: {
+        id: true, // Total count for this group
+        bla2_name: true, // Count where bla2_name is NOT NULL
+      },
+    });
+
+    // 3. Combine the data for easy consumption on the client
+    const combinedData = await Promise.all(assemblyData.map(async (assembly) => {
+      // Filter the summary data for the current assembly
+      const summaryForAssembly = boothSummary.filter(
+        (summary) => summary.assemblyId === assembly.id
+      );
+
+      // Initialize counts
+      let dummyBooths = 0; // isBla2 = 2
+      let unverifiedBooths = 0; // isBla2 = 1
+      let verifiedBooths = 0; // isBla2 = 0
+      let TotalBLa = 0; // bla2_name is NOT NULL
+
+      summaryForAssembly.forEach(summary => {
+        // You'll need to ensure bla_flag_enum values map correctly
+        // Assuming your enum is string-based, e.g., '0', '1', '2'
+        // If it's number-based, you might need to adjust the comparison.
+
+        if (summary.isBla2 === bla_flag_enum.VALUE_0) { // Assuming 'TWO' or similar for value 2 (Dummy)
+          dummyBooths += summary._count.id;
+        } else if (summary.isBla2 === bla_flag_enum.VALUE_1) { // Assuming 'ONE' or similar for value 1 (Unverified)
+          unverifiedBooths += summary._count.id;
+        } else if (summary.isBla2 === bla_flag_enum.VALUE_2) { // Assuming 'ZERO' or similar for value 0 (Verified)
+          verifiedBooths += summary._count.id;
+        }
+
+        // Count where bla2_name is NOT NULL (Real BLA Name made)
+        // Since we grouped by isBla2 and assemblyId, _count.bla2_name will only be 1 
+        // if bla2_name is NOT NULL AND it belongs to that specific isBla2 group.
+        // It's safer to sum the count where bla2_name is present across all groups.
+
+        // To get an accurate 'TotalBLa' count for the assembly, we must sum 
+        // _count.bla2_name for all groups belonging to this assembly.
+        // The Prisma `_count.bla2_name` aggregation is perfect for this: 
+        // it only counts rows where `bla2_name` is *not* null.
+
+        TotalBLa += summary._count.bla2_name;
+      });
+      
+      // Let's make an assumption that a separate query is better for the BLA Name count
+      // to avoid over-complication with `groupBy`.
+
+      const blaNameCountResult = await prisma.cgbooth25_vandan.aggregate({
+        _count: {
+          id: true
+        },
+        where: {
+          assemblyId: assembly.id,
+          bla2_name: { not: null }
+        }
+      });
+      TotalBLa = blaNameCountResult._count.id;
+      // Re-map the combined data structure
+      return {
+        ...assembly,
+        boothSummary: {
+          totalBooths: assembly._count.booths,
+          verifiedBooths: verifiedBooths,
+          unverifiedBooths: unverifiedBooths,
+          dummyBooths: dummyBooths,
+          TotalBLa: TotalBLa,
+        }
+      };
+    }));
+
+
+    if (!combinedData || combinedData.length === 0) {
+      return res.json({
+        message: "Could not get the assembly data",
+      });
+    }
+
+    return res.json({
+      message: "Assembly data got successfully",
+      data: combinedData
+    });
+  } catch (error) {
+    console.error("Error getting assembly data:", error);
+    return res.status(500).json({ // Return 500 status on server error
+      message: "Could not get the assembly data due to an internal error",
+    });
+  }
+};
 
 
 export const getAllboothDataByAssembly = async (req: any, res: any) => {
@@ -920,17 +1045,6 @@ export const getAllboothDataByAssembly = async (req: any, res: any) => {
    }
  }
 
-
-
-/**
- * Interface for the expected request body for updating the booth.
- */
-interface BoothUpdatePayload {
-  bla2_name?: string;
-  bla2_mobile_no?: string;
-  slr_per?: number | string; // Allows number or string from client
-}
-
 export const updateSingleBooth = async (req: Request, res: Response) => {
   const { boothId } = req.params;
   const updatePayload: BoothUpdatePayload = req.body;
@@ -968,17 +1082,36 @@ export const updateSingleBooth = async (req: Request, res: Response) => {
     }
   }
 
+  if (updatePayload.isBla2 !== undefined) {
+    const validStatuses = ['VALUE_0', 'VALUE_1', 'VALUE_2'];
+    if (validStatuses.includes(updatePayload.isBla2)) {
+      fieldsToUpdate.isBla2 = updatePayload.isBla2;
+      updateNecessary = true;
+    } else if (updatePayload.isBla2 === '') {
+      fieldsToUpdate.isBla2 = null;
+      updateNecessary = true;
+    } else {
+      return res.status(400).json({ error: 'Invalid status value. Must be VALUE_0, VALUE_1, or VALUE_2.' });
+    }
+  }
+
   if (!updateNecessary) {
     return res.status(400).json({ error: 'No valid update fields provided. Nothing to update.' });
   }
 
   try {
+    // Get current booth to check if update_count is null
+    const currentBooth = await prisma.cgbooth25_vandan.findUnique({
+      where: { id: Number(boothId) },
+      select: { update_count: true }
+    });
+
     const updatedBooth = await prisma.cgbooth25_vandan.update({
       where: { id: Number(boothId) },
       data: {
         ...fieldsToUpdate,
         update_date: new Date(),
-        update_count: {
+        update_count: currentBooth?.update_count === null ? 1 : {
           increment: 1,
         },
       },

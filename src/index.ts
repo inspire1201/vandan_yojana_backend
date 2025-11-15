@@ -10,6 +10,7 @@ import prisma from "./prisma.js";
 
 import { authRoute } from "./router/auth.route.js";
 import { userRoute } from "./router/user.route.js";
+// import resetBoothFields, { fillDummyBlaData } from "./utils/fillDummyBlaData.js";
 // import updateBlocks from "./config/updateblocks.utils.js";
 
 const app = express();
@@ -45,12 +46,14 @@ app.get("/", (req:any, res:any) => {
 });
 
 
+
+
 // ✅ Start server after Prisma connects
 async function startServer() {
   try {
     await prisma.$connect(); // <-- Connect once
-
-    // await updateBlocks();
+  // fillDummyBlaData();
+    // resetBoothFields()
     console.log("✅ Prisma connected");
     app.listen(PORT, '0.0.0.0',() => {
       console.log(`Server running at http://localhost:${PORT}`);

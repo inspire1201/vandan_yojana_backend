@@ -1,0 +1,10 @@
+LOAD DATA LOCAL INFILE "C:\\Users\\manish keer\\Downloads\\vandan Yojana\\All Booth 2k25 (1).csv"
+INTO TABLE cgBooth25_vandan
+CHARACTER SET utf8mb4
+FIELDS TERMINATED BY ','
+ENCLOSED BY '"'
+LINES TERMINATED BY '\n'
+IGNORE 1 LINES
+(assemblyId, booth_no, booth_name);
+
+
