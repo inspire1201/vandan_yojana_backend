@@ -35,26 +35,26 @@ userRoute.get("/:id/report", isAuthenticated,getDistrictCombinedReport); // NEW 
 
 
 // routes/block.routes.ts
-userRoute.post("/combined-by-name", getCombinedBlockReport);
+userRoute.post("/combined-by-name",isAuthenticated, getCombinedBlockReport);
 
-userRoute.get("/get-districts",getAllDistricts);
-userRoute.post("/update-district-map",updateDistrictMap);
-userRoute.post("/create-district-map",createDistrictMaps);
-userRoute.get("/get-district-map-data",getDistrictMapData);
+userRoute.get("/get-districts",isAuthenticated,getAllDistricts);
+userRoute.post("/update-district-map",isAuthenticated,updateDistrictMap);
+userRoute.post("/create-district-map",isAuthenticated,createDistrictMaps);
+userRoute.get("/get-district-map-data",isAuthenticated,getDistrictMapData);
 
 // Vidhan Sabha Map
-userRoute.post("/update-assembly-map",updateVidhanSabhaMap);
-userRoute.get("/get-assembly-map-data",getAssemblyMapData);
+userRoute.post("/update-assembly-map",isAuthenticated,updateVidhanSabhaMap);
+userRoute.get("/get-assembly-map-data",isAuthenticated,getAssemblyMapData);
 
 // Lok Shabha
-userRoute.post("/update-loksabha-map",updateLokSabhaMap);
-userRoute.get("/get-loksabha-map-data",getLokSabhaMapData);
+userRoute.post("/update-loksabha-map",isAuthenticated,updateLokSabhaMap);
+userRoute.get("/get-loksabha-map-data",isAuthenticated,getLokSabhaMapData);
 
 
 
-userRoute.get("/get-all-boths",getAllBoothsData);
-userRoute.get("/get-all-assembly",getAllAssemblyData);
-userRoute.get("/get-all-booth-by-assembly/:assemblyId",getAllboothDataByAssembly);
+userRoute.get("/get-all-boths",isAuthenticated,getAllBoothsData);
+userRoute.get("/get-all-assembly",isAuthenticated,getAllAssemblyData);
+userRoute.get("/get-all-booth-by-assembly/:assemblyId",isAuthenticated,getAllboothDataByAssembly);
 // update the booth data
-userRoute.put("/update-booth/:boothId", updateSingleBooth);
-userRoute.put("/bulk-update-booths", bulkUpdateBooths);
+userRoute.put("/update-booth/:boothId", isAuthenticated,updateSingleBooth);
+userRoute.put("/bulk-update-booths", isAuthenticated,bulkUpdateBooths);

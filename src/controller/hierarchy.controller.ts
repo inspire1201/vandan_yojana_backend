@@ -330,7 +330,7 @@ export const getAllClusterData = async (req: any, res: any) => {
     const { clusterId } = req.query;
     console.log("clusterID",clusterId)
     const parsedClusterId = parseInt(clusterId);
-    console.log("Fetching data for Cluster ID:", parsedClusterId);
+    // console.log("Fetching data for Cluster ID:", parsedClusterId);
 
     if (isNaN(parsedClusterId)) {
       return res.status(400).json({ error: "Invalid Cluster ID provided" });

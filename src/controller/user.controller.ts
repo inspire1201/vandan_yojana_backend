@@ -4,6 +4,7 @@ import { Request, Response } from "express";
 import prisma from "../prisma.js";
 import { C_COLUMNS, AVG_FIELDS, selectBlockC } from "../utils/prisma/selectc.js";
 import { bla_flag_enum } from "@prisma/client";
+import { redisCacheService } from "../redis/cache.service.js";
 type BlockType = "R" | "U";
 
 
@@ -170,9 +171,11 @@ interface DistrictReport {
 
 export const getDistrictCombinedReport = async (req: Request, res: Response) => {
   try {
+
+
     const districtId = Number(req.params.id);
     const { type = "ALL" } = req.query as { type?: "ALL" | "R" | "U" };
-
+     
     // Validate type
     if (!["ALL", "R", "U"].includes(type)) {
       return res.status(400).json({
@@ -849,46 +852,21 @@ export const getAllBoothsData = async (req: any, res: any) => {
 }
 
 
-
-// export const getAllAssemblyData = async (req: any, res: any) => {
-//  try {
-
-//   const assemblyData = await prisma.assembly_vandan.findMany({
-//   include: {
-//     _count: {
-//       select: { booths: true },  // counts number of booths for each assembly
-//     },
-//   },
-// });
-
-
-
-
-//   if(!assemblyData){
-//     return res.json({
-//       message:"could not get the assembly data ",
-//     })
-//   }
-
-//   return res.json({
-//     message:"assembly data got successfully",
-//     data:assemblyData
-//   })
-// }
-//   catch (error) {
-//   console.log("could not get the data assembly data")
-//   return res.json({
-//     message:"could not get the assembly data ",
-   
-//   })
-//  }  
-
-// }
-
-
 // This will be a cleaner and more efficient query to get all the counts
 export const getAllAssemblyData = async (req: any, res: any) => {
   try {
+
+     const cacheKey = "getAllAssemblyData:all";
+    
+        // 1️⃣ Check cache
+        const cachedData = await redisCacheService.get(cacheKey);
+        if (cachedData) {
+          // console.log(`[CACHE HIT] ${cacheKey}`);
+          return res.json({
+            cached: true,
+            ...cachedData,
+          });
+        }
     // 1. Get all Assembly data with the total number of booths
     const assemblyData = await prisma.assembly_vandan.findMany({
       select: {
@@ -990,10 +968,17 @@ export const getAllAssemblyData = async (req: any, res: any) => {
       });
     }
 
-    return res.json({
+    const response =  {
       message: "Assembly data got successfully",
       data: combinedData
-    });
+    };
+
+
+    // 2️⃣ Cache result (TTL 5 mins)
+    await redisCacheService.set(cacheKey, response, 86400 ); // 300s = 5 mins
+    // console.log(`[CACHE SET] ${cacheKey}`);
+
+    return res.json(response);
   } catch (error) {
     console.error("Error getting assembly data:", error);
     return res.status(500).json({ // Return 500 status on server error

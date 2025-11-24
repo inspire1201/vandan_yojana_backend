@@ -838,14 +838,14 @@ export const getBoothInCluster = async (req: any, res: any) => {
     // 1️⃣ Check cache
     const cachedData = await redisCacheService.get(cacheKey);
     if (cachedData) {
-      console.log(`[CACHE HIT] ${cacheKey}`);
+      // console.log(`[CACHE HIT] ${cacheKey}`);
       return res.json({
         cached: true,
         ...cachedData,
       });
     }
 
-    console.log(`[CACHE MISS] ${cacheKey}`);
+    // console.log(`[CACHE MISS] ${cacheKey}`);
 
     // ------------ Fetch DB -------------
     let totalBooths = 0;
@@ -911,7 +911,7 @@ export const getBoothInCluster = async (req: any, res: any) => {
 
     // 2️⃣ Cache result (TTL 5 mins)
     await redisCacheService.set(cacheKey, response, 86400 ); // 300s = 5 mins
-    console.log(`[CACHE SET] ${cacheKey}`);
+    // console.log(`[CACHE SET] ${cacheKey}`);
 
     return res.json(response);
   } catch (error: any) {
@@ -930,14 +930,14 @@ export const getBoothInSambhag = async (req:any, res:any) => {
     // 1️⃣ Check cache
     const cachedData = await redisCacheService.get(cacheKey);
     if (cachedData) {
-      console.log(`[CACHE HIT] ${cacheKey}`);
+      // console.log(`[CACHE HIT] ${cacheKey}`);
       return res.json({
         cached: true,
         ...cachedData,
       });
     }
 
-    console.log(`[CACHE MISS] ${cacheKey}`);
+    // console.log(`[CACHE MISS] ${cacheKey}`);
 
 
     // STEP 1: Get unique sambhags
@@ -1011,7 +1011,7 @@ export const getBoothInSambhag = async (req:any, res:any) => {
     }
   // 2️⃣ Cache result (TTL 5 mins)
     await redisCacheService.set(cacheKey, response, 86400 ); // 300s = 5 mins
-    console.log(`[CACHE SET] ${cacheKey}`);
+    // console.log(`[CACHE SET] ${cacheKey}`);
 
     return res.json(response);
   } catch (error:any) {
@@ -1028,7 +1028,7 @@ export const getBoothInLokSabha = async (req:any, res:any) => {
     // 1️⃣ Check cache
     const cachedData = await redisCacheService.get(cacheKey);
     if (cachedData) {
-      console.log(`[CACHE HIT] ${cacheKey}`);
+      // console.log(`[CACHE HIT] ${cacheKey}`);
       return res.json({
         cached: true,
         ...cachedData,
@@ -1101,7 +1101,7 @@ export const getBoothInLokSabha = async (req:any, res:any) => {
 
     // 2️⃣ Cache result (TTL 5 mins)
     await redisCacheService.set(cacheKey, response, 86400 ); // 300s = 5 mins
-    console.log(`[CACHE SET] ${cacheKey}`);
+    // console.log(`[CACHE SET] ${cacheKey}`);
 
     return res.json(response);
   } catch (err:any) {
@@ -1118,7 +1118,7 @@ export const getBoothInVidhanSabha = async (req:any, res:any) => {
     // 1️⃣ Check cache
     const cachedData = await redisCacheService.get(cacheKey);
     if (cachedData) {
-      console.log(`[CACHE HIT] ${cacheKey}`);
+      // console.log(`[CACHE HIT] ${cacheKey}`);
       return res.json({
         cached: true,
         ...cachedData,

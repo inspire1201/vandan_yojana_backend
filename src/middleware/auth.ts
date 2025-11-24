@@ -19,7 +19,7 @@ export const isAuthenticated = (
     if (!token) {
       res.status(400).json({
         success: false,
-        message: "Token not found token de bhai",
+        message: "Token not found token in request",
       });
       return; // Use return here to exit the function without returning the response object
     }
