@@ -1,0 +1,9 @@
+    SELECT 
+        c.CLUS_ID AS clusterId,
+        c.LOK_ID AS lokId,
+        ANY_VALUE(c.LOK_NM) AS lokName
+      FROM cludata c
+      WHERE c.CLUS_ID IS NOT NULL 
+        AND c.LOK_ID IS NOT NULL
+        AND c.CLUS_ID = 3      GROUP BY c.CLUS_ID, c.LOK_ID
+      ORDER BY c.CLUS_ID, ANY_VALUE(c.LOK_NM);

@@ -1,5 +1,3 @@
-
-
 import express from "express";
 
 import fileUpload from "express-fileupload";
@@ -10,6 +8,8 @@ import prisma from "./prisma.js";
 
 import { authRoute } from "./router/auth.route.js";
 import { userRoute } from "./router/user.route.js";
+import { adminRoute } from "./router/admin.route.js";
+import hierarchyRoute from "./router/hierarchy.route.js";
 // import resetBoothFields, { fillDummyBlaData } from "./utils/fillDummyBlaData.js";
 // import updateBlocks from "./config/updateblocks.utils.js";
 
@@ -39,14 +39,16 @@ app.use(cors(corsOptions));
 
 app.use("/api/v1/auth",authRoute)
 app.use("/api/v1/districts",userRoute)
+app.use("/api/v1/admin",adminRoute)
+app.use("/api/v1/admin/hierarchy",hierarchyRoute)
 
 
 app.get("/", (req:any, res:any) => {
   res.send("Hello World!");
 });
-
-
-
+app.get("/health", (req:any, res:any) => {
+  res.send("All are woriking fine");
+});
 
 // ✅ Start server after Prisma connects
 async function startServer() {

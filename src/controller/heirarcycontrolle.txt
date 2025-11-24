@@ -1,0 +1,412 @@
+import prisma from "../prisma";
+
+// Get all unique Clusters (Level 0)
+export const getClusters = async (req: any, res: any) => {
+    try {
+        const data = await prisma.cludata.findMany({
+            distinct: ['CLUS_ID'],
+            select: {
+                CLUS_ID: true,
+                CLUS_NM: true
+            },
+            where: {
+                CLUS_ID: { not: null } // Exclude nulls
+            },
+            orderBy: { CLUS_NM: 'asc' }
+        });
+        res.json({ data });
+    } catch (err) {
+        res.status(500).json({ error: 'Error fetching clusters' });
+    }
+};
+
+// Get all unique Sambhags (Level 0)
+export const getSambhags = async (req: any, res: any) => {
+    try {
+        const data = await prisma.smdata.findMany({
+            distinct: ['SAM_ID'],
+            select: {
+                SAM_ID: true,
+                SAM_NM: true
+            },
+            where: {
+                SAM_ID: { not: null }
+            },
+            orderBy: { SAM_NM: 'asc' }
+        });
+        res.json({ data });
+    } catch (err) {
+        res.status(500).json({ error: 'Error fetching sambhags' });
+    }
+};
+
+
+// Get Lok Sabhas by Cluster ID (Level 1)
+// Request: /api/loksabha/:clusterId
+export const getLokSabhasByCluster = async (req: any, res: any) => {
+    const { clusterId } = req.params;
+    try {
+        const data = await prisma.cludata.findMany({
+            where: { 
+                CLUS_ID: parseInt(clusterId) 
+            },
+            distinct: ['LOK_ID'],
+            select: {
+                LOK_ID: true,
+                LOK_NM: true,
+                CLUS_ID: true 
+            },
+            orderBy: { LOK_NM: 'asc' }
+        });
+        res.json({ data });
+    } catch (err) {
+        res.status(500).json({ error: 'Error fetching Lok Sabhas' });
+    }
+};
+
+// Get Jilas (Districts) by Sambhag ID (Level 1)
+// Request: /api/jila/:sambhagId
+export const getJilasBySambhag = async (req: any, res: any) => {
+    const { sambhagId } = req.params;
+    try {
+        const data = await prisma.smdata.findMany({
+            where: { 
+                SAM_ID: parseInt(sambhagId) 
+            },
+            distinct: ['JILA_ID'],
+            select: {
+                JILA_ID: true,
+                JILA_NM: true,
+                SAM_ID: true
+            },
+            orderBy: { JILA_NM: 'asc' }
+        });
+        res.json({ data });
+    } catch (err) {
+        res.status(500).json({ error: 'Error fetching Districts' });
+    }
+};
+
+
+
+// Get Vidhan Sabhas by Lok Sabha ID (from cludata)
+// Request: /api/vidhansabha/loksabha/:lokId
+export const getVidhanSabhasByLokSabha = async (req: any, res: any) => {
+    const { lokId } = req.params;
+    try {
+        const data = await prisma.cludata.findMany({
+            where: { 
+                LOK_ID: parseInt(lokId) 
+            },
+            distinct: ['VID_ID'],
+            select: {
+                VID_ID: true,
+                VID_NM: true,
+                LOK_ID: true
+            },
+            orderBy: { VID_NM: 'asc' }
+        });
+        res.json({ data });
+    } catch (err) {
+        res.status(500).json({ error: 'Error fetching Vidhan Sabhas' });
+    }
+};
+
+// Get Vidhan Sabhas by Jila ID (from smdata)
+// Request: /api/vidhansabha/jila/:jilaId
+export const getVidhanSabhasByDistrict = async (req: any, res: any) => {
+    const { jilaId } = req.params;
+    try {
+        const data = await prisma.smdata.findMany({
+            where: { 
+                JILA_ID: parseInt(jilaId) 
+            },
+            distinct: ['VID_ID'],
+            select: {
+                VID_ID: true,
+                VID_NM: true,
+                JILA_ID: true
+            },
+            orderBy: { VID_NM: 'asc' }
+        });
+        res.json({ data });
+    } catch (err) {
+        res.status(500).json({ error: 'Error fetching Vidhan Sabhas' });
+    }
+};
+
+
+// Get Mandals by Vidhan Sabha ID (Level 3)
+// Request: /api/mandal/:vidId
+export const getMandalsByVid = async (req: any, res: any) => {
+    const { vidId } = req.params;
+    try {
+        const data = await prisma.vddata.findMany({
+            where: { 
+                VID_ID: parseInt(vidId) 
+            },
+            distinct: ['MAN_ID'], // Only get unique Mandals
+            select: {
+                MAN_ID: true,
+                MAN_NM: true,
+                VID_ID: true
+            },
+            orderBy: { MAN_NM: 'asc' }
+        });
+        res.json({ data });
+    } catch (err) {
+        res.status(500).json({ error: 'Error fetching Mandals' });
+    }
+};
+
+// Get Sakhas by Mandal ID (Level 4)
+// Request: /api/sakha/:manId
+export const getSakhasByMandal = async (req: any, res: any) => {
+    const { manId } = req.params;
+    try {
+        const data = await prisma.vddata.findMany({
+            where: { 
+                MAN_ID: parseInt(manId) 
+            },
+            // --- 💡 Primary Change Here ---
+            // Use both MAN_ID and SAK_ID for distinctness to guarantee 
+            // uniqueness within this specific Mandal.
+            distinct: ['MAN_ID', 'SAK_ID'], 
+            // -----------------------------
+            select: {
+                SAK_ID: true,
+                SAK_NM: true,
+                // MAN_ID is guaranteed by the where clause, but keeping it 
+                // in select for context is fine.
+                MAN_ID: true 
+            },
+            orderBy: { SAK_NM: 'asc' }
+        });
+        res.json({ data });
+    } catch (err) {
+        res.status(500).json({ error: 'Error fetching Sakhas' });
+    }
+};
+
+// Get Booths by Sakha ID (Level 5 - Final Leaf Nodes)
+// Request: /api/booth/:sakId
+export const getBoothsBySakha = async (req: any, res: any) => {
+    const { sakId } = req.params;
+    try {
+        // No 'distinct' needed here as we want the actual booth list
+        const data = await prisma.vddata.findMany({
+            where: { 
+                SAK_ID: parseInt(sakId) 
+            },
+            select: {
+                BT_ID: true,
+                BT_NM: true,
+                SAK_ID: true,
+                // You can include other specific booth details here if needed
+            },
+            orderBy: { BT_ID: 'asc' }
+        });
+        res.json({ data });
+    } catch (err) {
+        res.status(500).json({ error: 'Error fetching Booths' });
+    }
+};
+
+
+
+export const getDeepClusterData = async (req: any, res: any) => {
+  try {
+    const { clusterId } = req.params;
+    const cId = parseInt(clusterId);
+
+    // 1. Get the Upper Hierarchy (Cluster -> Lok -> Vidhan)
+    const upperData = await prisma.cludata.findMany({
+      where: { CLUS_ID: cId, VID_ID: { not: null } },
+      select: { CLUS_ID: true, CLUS_NM: true, LOK_ID: true, LOK_NM: true, VID_ID: true, VID_NM: true }
+    });
+
+    if (upperData.length === 0) return res.json({ success: true, data: [] });
+
+    // 2. Extract Vidhan IDs to fetch Lower Hierarchy
+    const vidIds = [...new Set(upperData.map(item => item.VID_ID).filter((id): id is number => id !== null))];
+
+    // 3. Get Lower Hierarchy (Vidhan -> Mandal -> Sakha -> Booth)
+    // We limit strictly to the Vidhan Sabhas found in the Cluster
+    const lowerData = await prisma.vddata.findMany({
+      where: { VID_ID: { in: vidIds }, BT_ID: { not: null } },
+      select: { 
+        VID_ID: true, MAN_ID: true, MAN_NM: true, 
+        SAK_ID: true, SAK_NM: true, BT_ID: true, BT_NM: true 
+      }
+    });
+
+    // 4. Merge Data for Frontend
+    // We create a flat list of Booths with full lineage
+    const formattedData = lowerData.map(lower => {
+      // Find matching upper data for this Vidhan ID
+      const upper = upperData.find(u => u.VID_ID === lower.VID_ID);
+      return {
+        id: lower.BT_ID,
+        name: lower.BT_NM,
+        type: 'booth',
+        // Full Lineage Metadata
+        clusterId: upper?.CLUS_ID,
+        clusterName: upper?.CLUS_NM,
+        lokId: upper?.LOK_ID,
+        lokName: upper?.LOK_NM,
+        vidId: lower.VID_ID,
+        vidName: upper?.VID_NM,
+        manId: lower.MAN_ID,
+        manName: lower.MAN_NM,
+        sakId: lower.SAK_ID,
+        sakName: lower.SAK_NM,
+        btId: lower.BT_ID,
+        btName: lower.BT_NM
+      };
+    });
+
+    res.status(200).json({ success: true, data: formattedData });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: "Server Error" });
+  }
+};
+
+export const getDeepSambhagData = async (req: Request, res: Response) => {
+  try {
+    const { sambhagId } = req.params;
+    const sId = parseInt(sambhagId);
+
+    // 1. Upper (Sambhag -> Jila -> Vidhan)
+    const upperData = await prisma.smdata.findMany({
+      where: { SAM_ID: sId, VID_ID: { not: null } },
+      select: { SAM_ID: true, SAM_NM: true, JILA_ID: true, JILA_NM: true, VID_ID: true, VID_NM: true }
+    });
+
+    if (upperData.length === 0) return res.json({ success: true, data: [] });
+
+    const vidIds = [...new Set(upperData.map(item => item.VID_ID).filter((id): id is number => id !== null))];
+
+    // 2. Lower
+    const lowerData = await prisma.vddata.findMany({
+      where: { VID_ID: { in: vidIds }, BT_ID: { not: null } },
+      select: { VID_ID: true, MAN_ID: true, MAN_NM: true, SAK_ID: true, SAK_NM: true, BT_ID: true, BT_NM: true }
+    });
+
+    // 3. Merge
+    const formattedData = lowerData.map(lower => {
+      const upper = upperData.find(u => u.VID_ID === lower.VID_ID);
+      return {
+        id: lower.BT_ID,
+        name: lower.BT_NM,
+        type: 'booth',
+        sambhagId: upper?.SAM_ID,
+        sambhagName: upper?.SAM_NM,
+        jilaId: upper?.JILA_ID,
+        jilaName: upper?.JILA_NM,
+        vidId: lower.VID_ID,
+        vidName: upper?.VID_NM,
+        manId: lower.MAN_ID,
+        manName: lower.MAN_NM,
+        sakId: lower.SAK_ID,
+        sakName: lower.SAK_NM,
+        btId: lower.BT_ID,
+        btName: lower.BT_NM
+      };
+    });
+
+    res.status(200).json({ success: true, data: formattedData });
+  } catch (error) {
+    res.status(500).json({ error: "Server Error" });
+  }
+};
+
+
+
+export const getHierarchySummary = async (req: any, res: any) => {
+  try {
+    const { type, ids } = req.body; // type: 'cluster' | 'sambhag', ids: number[]
+
+    if (!ids || ids.length === 0) {
+      return res.json({ 
+        counts: { level1: 0, level2: 0, vidhansabha: 0, mandal: 0, sakha: 0, booth: 0 } 
+      });
+    }
+
+    const numericIds = ids.map((id: any) => parseInt(id));
+    let vidIds: number[] = [];
+    
+    // Statistics Object
+    let stats = {
+      level1: 0, // Lok Sabha (for Cluster) or Jila (for Sambhag)
+      vidhansabha: 0,
+      mandal: 0,
+      sakha: 0,
+      booth: 0
+    };
+
+    // 1. Get Upper Hierarchy Counts (Cluster/Sambhag -> Vidhan)
+    if (type === 'cluster') {
+      // Fetch relevant rows from cludata
+      const upperData = await prisma.cludata.findMany({
+        where: { CLUS_ID: { in: numericIds }, VID_ID: { not: null } },
+        select: { LOK_ID: true, VID_ID: true }
+      });
+
+      // Count Unique Items
+      const uniqueLoks = new Set(upperData.map(item => item.LOK_ID).filter(Boolean));
+      const uniqueVids = new Set(upperData.map(item => item.VID_ID).filter(Boolean));
+      
+      stats.level1 = uniqueLoks.size; // Lok Sabhas
+      stats.vidhansabha = uniqueVids.size;
+      vidIds = [...uniqueVids] as number[];
+
+    } else if (type === 'sambhag') {
+      // Fetch relevant rows from smdata
+      const upperData = await prisma.smdata.findMany({
+        where: { SAM_ID: { in: numericIds }, VID_ID: { not: null } },
+        select: { JILA_ID: true, VID_ID: true }
+      });
+
+      const uniqueJilas = new Set(upperData.map(item => item.JILA_ID).filter(Boolean));
+      const uniqueVids = new Set(upperData.map(item => item.VID_ID).filter(Boolean));
+
+      stats.level1 = uniqueJilas.size; // Jilas
+      stats.vidhansabha = uniqueVids.size;
+      vidIds = [...uniqueVids] as number[];
+    }
+
+    // 2. Get Lower Hierarchy Counts (Vidhan -> Booth) using vddata
+    if (vidIds.length > 0) {
+      // We use groupBy to get distinct counts efficiently from the massive vddata table
+      
+      // Count Mandals
+      const mandalGroup = await prisma.vddata.groupBy({
+        by: ['MAN_ID'],
+        where: { VID_ID: { in: vidIds }, MAN_ID: { not: null } }
+      });
+      stats.mandal = mandalGroup.length;
+
+      // Count Sakhas
+      const sakhaGroup = await prisma.vddata.groupBy({
+        by: ['SAK_ID'],
+        where: { VID_ID: { in: vidIds }, SAK_ID: { not: null } }
+      });
+      stats.sakha = sakhaGroup.length;
+
+      // Count Booths
+      // For booths, we can just use count() because BT_ID is usually unique per row in this context, 
+      // or distinct count if there are duplicates. Assuming 1 row = 1 booth map:
+      const boothCount = await prisma.vddata.count({
+        where: { VID_ID: { in: vidIds }, BT_ID: { not: null } }
+      });
+      stats.booth = boothCount;
+    }
+
+    res.json({ success: true, data: stats });
+
+  } catch (error) {
+    console.error("Summary Error:", error);
+    res.status(500).json({ error: "Failed to calculate summary" });
+  }
+};

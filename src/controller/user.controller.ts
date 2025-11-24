@@ -44,7 +44,7 @@ export const getDistrictsByType = async (req: Request, res: Response) => {
         } 
       },
       select: {
-        district_id: true,
+        district_id: true,  
         district_name: true,
         districtblockmap_vandan: {
           select: {

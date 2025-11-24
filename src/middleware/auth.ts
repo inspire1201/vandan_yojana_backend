@@ -58,6 +58,7 @@ export const isAdmin = (
 ) => {
   try {
     const user = req.user;
+    console.log("user in is admin", user);
     if (!user) {
       res.status(401).json({
         success: false,
