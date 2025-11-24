@@ -42,12 +42,32 @@ export const isAuthenticated = (
     next();
   } catch (error) {
     console.error("Error during authentication:", error);
+    
+    // Check if error is due to token expiration
+    if (error instanceof jwt.TokenExpiredError) {
+      res.status(401).json({
+        success: false,
+        message: "Token expired",
+        tokenExpired: true
+      });
+      return;
+    }
+    
+    // Check if error is due to invalid token
+    if (error instanceof jwt.JsonWebTokenError) {
+      res.status(401).json({
+        success: false,
+        message: "Invalid token",
+        tokenExpired: true
+      });
+      return;
+    }
+    
     res.status(500).json({
       success: false,
       message: "Something went wrong while verifying the token",
-      // error: (error as Error).message,
     });
-    return; // Use return to exit the function here too
+    return;
   }
 };
 
