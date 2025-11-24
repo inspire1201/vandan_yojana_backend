@@ -1,14 +1,25 @@
-// import { createClient } from "redis";
+import { createClient } from "redis";
 
-// const redisClient = createClient({
-//   socket: {
-//     host: "127.0.0.1",  // local or EC2 Redis
-//     port: 6379
-//   }
-// });
+export const redisClient = createClient({
+  url: process.env.REDIS_URL,
+});
 
-// redisClient.on("error", (err) => console.error("Redis Error:", err));
+let redisAvailable = false;
 
-// await redisClient.connect().then(() => console.log("Redis Connected")).catch(console.error).finally(() => console.log("Redis Connection Attempt Finished"));
+export async function initRedis() {
+  redisClient.on("error", (err) => {
+    console.error("🔴 Redis Error:", err);
+    redisAvailable = false;
+  });
 
-// export default redisClient;
+  redisClient.on("connect", () => {
+    console.log("🟢 Redis Connected");
+    redisAvailable = true;
+  });
+
+  await redisClient.connect();
+}
+
+export function isRedisUp() {
+  return redisAvailable;
+}

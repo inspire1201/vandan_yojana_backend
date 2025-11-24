@@ -1,4 +1,5 @@
 import prisma from "../prisma.js";
+import { redisCacheService } from "../redis/cache.service.js";
 
  export const getSmData = async (req:any, res:any) => {
     try {
@@ -757,74 +758,164 @@ export const getAllSakhasInMandal = async (req:any, res:any) => {
 
 
 // GET ALL BOOTHS IN EACH CLUSTER (Correct & No Booth Loss)
-export const getBoothInCluster = async (req:any, res:any) => {
+// export const getBoothInCluster = async (req:any, res:any) => {
+//   try {
+//  let totalBooths =0;
+//     // 1) Fetch cluster → VID_ID mapping
+//     const clusterRows = await prisma.$queryRaw`
+//       SELECT DISTINCT CLUS_ID, CLUS_NM, VID_ID
+//       FROM cludata
+//       WHERE CLUS_ID IS NOT NULL
+//         AND VID_ID IS NOT NULL
+//       ORDER BY CLUS_ID;
+//     `as any[];;
+
+//     // Build cluster → vid list
+//     const clusterVidMap:any = {};
+//     for (const row of clusterRows) {
+//       if (!clusterVidMap[row.CLUS_ID]) {
+//         clusterVidMap[row.CLUS_ID] = {
+//           clusterId: row.CLUS_ID,
+//           clusterName: row.CLUS_NM,
+//           vids: []
+//         };
+//       }
+//       clusterVidMap[row.CLUS_ID].vids.push(row.VID_ID);
+//     }
+
+//     // 2) Fetch ALL booths from vddata (no join)
+//     const boothRows = await prisma.$queryRaw`
+//       SELECT VID_ID, BT_ID, BT_NM
+//       FROM vddata
+//       WHERE BT_ID IS NOT NULL;
+//     `as any[];;
+
+//     // 3) Group booths into clusters manually (NO JOIN LOSS)
+//     const clusters:any = [];
+
+//     for (const cid in clusterVidMap) {
+//       const { clusterId, clusterName, vids } = clusterVidMap[cid];
+
+//       // booths whose VID_ID is in cluster vid list
+//       const booths = boothRows.filter(b => vids.includes(b.VID_ID));
+//      totalBooths+=booths.length;
+//       clusters.push({
+//         clusterId,
+//         clusterName,
+//         boothCount: booths.length,
+//         booths: booths.map(b => ({ BT_ID: b.BT_ID, BT_NM: b.BT_NM }))
+//       });
+//     }
+
+   
+//     // Transform to match frontend expectations
+//     const countData = clusters.map((item:any) => ({
+//       id: item.clusterId,
+//       name: item.clusterName,
+//       count: item.boothCount,
+//       level: 'cluster',
+//       column: 'booth'
+//     }));
+
+//     res.json({
+//       totalLevelCount: clusters.length,
+//       totalColumnCount: totalBooths,
+//       countData: countData,
+//       detailedData: clusters
+//     });
+
+//   } catch (err:any) {
+//     return res.status(500).json({ error: err.message });
+//   }
+// };
+
+
+
+
+export const getBoothInCluster = async (req: any, res: any) => {
+  const cacheKey = "cluster:booth:all";
   try {
- let totalBooths =0;
-    // 1) Fetch cluster → VID_ID mapping
-    const clusterRows = await prisma.$queryRaw`
+    // 1️⃣ Check cache
+    const cachedData = await redisCacheService.get(cacheKey);
+    if (cachedData) {
+      console.log(`[CACHE HIT] ${cacheKey}`);
+      return res.json({
+        cached: true,
+        ...cachedData,
+      });
+    }
+
+    console.log(`[CACHE MISS] ${cacheKey}`);
+
+    // ------------ Fetch DB -------------
+    let totalBooths = 0;
+
+    const clusterRows = await prisma.$queryRaw<any[]>`
       SELECT DISTINCT CLUS_ID, CLUS_NM, VID_ID
       FROM cludata
       WHERE CLUS_ID IS NOT NULL
         AND VID_ID IS NOT NULL
       ORDER BY CLUS_ID;
-    `as any[];;
+    `;
 
-    // Build cluster → vid list
-    const clusterVidMap:any = {};
+    const clusterVidMap: any = {};
     for (const row of clusterRows) {
       if (!clusterVidMap[row.CLUS_ID]) {
         clusterVidMap[row.CLUS_ID] = {
           clusterId: row.CLUS_ID,
           clusterName: row.CLUS_NM,
-          vids: []
+          vids: [],
         };
       }
       clusterVidMap[row.CLUS_ID].vids.push(row.VID_ID);
     }
 
-    // 2) Fetch ALL booths from vddata (no join)
-    const boothRows = await prisma.$queryRaw`
+    const boothRows = await prisma.$queryRaw<any[]>`
       SELECT VID_ID, BT_ID, BT_NM
       FROM vddata
       WHERE BT_ID IS NOT NULL;
-    `as any[];;
+    `;
 
-    // 3) Group booths into clusters manually (NO JOIN LOSS)
-    const clusters:any = [];
+    const clusters: any[] = [];
 
     for (const cid in clusterVidMap) {
       const { clusterId, clusterName, vids } = clusterVidMap[cid];
+      const booths = boothRows.filter((b) => vids.includes(b.VID_ID));
+      totalBooths += booths.length;
 
-      // booths whose VID_ID is in cluster vid list
-      const booths = boothRows.filter(b => vids.includes(b.VID_ID));
-     totalBooths+=booths.length;
       clusters.push({
         clusterId,
         clusterName,
         boothCount: booths.length,
-        booths: booths.map(b => ({ BT_ID: b.BT_ID, BT_NM: b.BT_NM }))
+        booths: booths.map((b) => ({
+          BT_ID: b.BT_ID,
+          BT_NM: b.BT_NM,
+        })),
       });
     }
 
-   
-    // Transform to match frontend expectations
-    const countData = clusters.map((item:any) => ({
+    const countData = clusters.map((item) => ({
       id: item.clusterId,
       name: item.clusterName,
       count: item.boothCount,
-      level: 'cluster',
-      column: 'booth'
+      level: "cluster",
+      column: "booth",
     }));
 
-    res.json({
+    const response = {
       totalLevelCount: clusters.length,
       totalColumnCount: totalBooths,
-      countData: countData,
-      detailedData: clusters
-    });
+      countData,
+      detailedData: clusters,
+    };
 
-  } catch (err:any) {
-    return res.status(500).json({ error: err.message });
+    // 2️⃣ Cache result (TTL 5 mins)
+    await redisCacheService.set(cacheKey, response, 86400 ); // 300s = 5 mins
+    console.log(`[CACHE SET] ${cacheKey}`);
+
+    return res.json(response);
+  } catch (error: any) {
+    return res.status(500).json({ error: error.message });
   }
 };
 
@@ -834,6 +925,20 @@ export const getBoothInCluster = async (req:any, res:any) => {
 // -------------------------------------------------------------
 export const getBoothInSambhag = async (req:any, res:any) => {
   try {
+    const cacheKey = "getBoothInSambhag:all";
+
+    // 1️⃣ Check cache
+    const cachedData = await redisCacheService.get(cacheKey);
+    if (cachedData) {
+      console.log(`[CACHE HIT] ${cacheKey}`);
+      return res.json({
+        cached: true,
+        ...cachedData,
+      });
+    }
+
+    console.log(`[CACHE MISS] ${cacheKey}`);
+
 
     // STEP 1: Get unique sambhags
     const sambhagList = await prisma.$queryRaw`
@@ -898,13 +1003,17 @@ export const getBoothInSambhag = async (req:any, res:any) => {
     }));
 
     // STEP 4: Return JSON
-    res.json({
+     const response={
       totalLevelCount: finalData.length,
       totalColumnCount: totalBooths,
       countData: countData,
       detailedData: finalData
-    });
+    }
+  // 2️⃣ Cache result (TTL 5 mins)
+    await redisCacheService.set(cacheKey, response, 86400 ); // 300s = 5 mins
+    console.log(`[CACHE SET] ${cacheKey}`);
 
+    return res.json(response);
   } catch (error:any) {
     res.status(500).json({ error: error.message });
   }
@@ -914,6 +1023,17 @@ export const getBoothInSambhag = async (req:any, res:any) => {
 // GET ALL BOOTHS IN EACH LOK SABHA
 export const getBoothInLokSabha = async (req:any, res:any) => {
   try {
+    const cacheKey = "getBoothInLocsabha:all";
+
+    // 1️⃣ Check cache
+    const cachedData = await redisCacheService.get(cacheKey);
+    if (cachedData) {
+      console.log(`[CACHE HIT] ${cacheKey}`);
+      return res.json({
+        cached: true,
+        ...cachedData,
+      });
+    }
     let totalBooths = 0;
     
     // 1) Fetch lok sabha → VID_ID mapping
@@ -972,13 +1092,18 @@ export const getBoothInLokSabha = async (req:any, res:any) => {
       column: 'booth'
     }));
 
-    res.json({
+    const response={
       totalLevelCount: loks.length,
       totalColumnCount: totalBooths,
       countData: countData,
       detailedData: loks
-    });
+    };
 
+    // 2️⃣ Cache result (TTL 5 mins)
+    await redisCacheService.set(cacheKey, response, 86400 ); // 300s = 5 mins
+    console.log(`[CACHE SET] ${cacheKey}`);
+
+    return res.json(response);
   } catch (err:any) {
     return res.status(500).json({ error: err.message });
   }
@@ -987,6 +1112,21 @@ export const getBoothInLokSabha = async (req:any, res:any) => {
 // GET ALL BOOTHS IN EACH VIDHAN SABHA
 export const getBoothInVidhanSabha = async (req:any, res:any) => {
   try {
+    
+    const cacheKey = "getBoothInVidhanSabha:all";
+
+    // 1️⃣ Check cache
+    const cachedData = await redisCacheService.get(cacheKey);
+    if (cachedData) {
+      console.log(`[CACHE HIT] ${cacheKey}`);
+      return res.json({
+        cached: true,
+        ...cachedData,
+      });
+    }
+    
+  
+
     // 1) Fetch all Vidhan Sabhas
     const vidhans = await prisma.$queryRaw`
       SELECT VID_ID, ANY_VALUE(VID_NM) AS VID_NM
@@ -1030,12 +1170,18 @@ export const getBoothInVidhanSabha = async (req:any, res:any) => {
       column: 'booth'
     }));
 
-    res.json({
+     const response = {
       totalLevelCount: vidhans.length,
       totalColumnCount: boothsData.length,
       countData: countData,
       detailedData: result
-    });
+    };
+
+          // 2️⃣ Cache result (TTL 5 mins)
+    await redisCacheService.set(cacheKey, response, 86400 ); // 300s = 5 mins
+    console.log(`[CACHE SET] ${cacheKey}`);
+
+    return res.json(response);
 
   } catch (err) {
     console.error(err);
@@ -1046,6 +1192,19 @@ export const getBoothInVidhanSabha = async (req:any, res:any) => {
 // GET ALL BOOTHS IN EACH JILA
 export const getBoothInJila = async (req:any, res:any) => {
   try {
+     const cacheKey = "getBoothInJila:all";
+
+    // 1️⃣ Check cache
+    const cachedData = await redisCacheService.get(cacheKey);
+    if (cachedData) {
+      console.log(`[CACHE HIT] ${cacheKey}`);
+      return res.json({
+        cached: true,
+        ...cachedData,
+      });
+    }
+    
+        
     // STEP 1: Get unique jilas
     const jilaList = await prisma.$queryRaw`
       SELECT DISTINCT JILA_ID, JILA_NM
@@ -1108,12 +1267,18 @@ export const getBoothInJila = async (req:any, res:any) => {
     }));
 
     // STEP 4: Return JSON
-    res.json({
+   const response = {
       totalLevelCount: finalData.length,
       totalColumnCount: totalBooths,
       countData: countData,
       detailedData: finalData
-    });
+    }
+
+    // 2️⃣ Cache result (TTL 5 mins)
+    await redisCacheService.set(cacheKey, response, 86400 ); // 300s = 5 mins
+    console.log(`[CACHE SET] ${cacheKey}`);
+
+    return res.json(response);
 
   } catch (error:any) {
     res.status(500).json({ error: error.message });
@@ -1121,6 +1286,21 @@ export const getBoothInJila = async (req:any, res:any) => {
 };
 
 export const getBoothInMandal = async (req:any, res:any) => {
+ 
+  const cacheKey = "getBoothInMandal:all";
+
+    // 1️⃣ Check cache
+    const cachedData = await redisCacheService.get(cacheKey);
+    if (cachedData) {
+      console.log(`[CACHE HIT] ${cacheKey}`);
+      return res.json({
+        cached: true,
+        ...cachedData,
+      });
+    }
+    
+
+ 
   try {
     // 1️⃣ Fetch unique mandals (VID_ID + MAN_ID)
     const mandals = await prisma.$queryRaw`
@@ -1190,12 +1370,18 @@ export const getBoothInMandal = async (req:any, res:any) => {
     }));
 
     // 6️⃣ Send Response with correct format
-    res.json({
+   const response={
       totalLevelCount: mandals.length,
       totalColumnCount: boothsData.length,
       countData: countData,
       detailedData: detailedData
-    });
+    };
+
+            // 2️⃣ Cache result (TTL 5 mins)
+    await redisCacheService.set(cacheKey, response, 86400 ); // 300s = 5 mins
+    console.log(`[CACHE SET] ${cacheKey}`);
+
+    return res.json(response);
 
   } catch (err) {
     console.error("Error in getBoothInMandal:", err);
@@ -1205,6 +1391,20 @@ export const getBoothInMandal = async (req:any, res:any) => {
 // GET ALL BOOTHS IN EACH SAKHA
 export const getBoothInSakha = async (req:any, res:any) => {
   try {
+
+     const cacheKey = "getBoothInSakha:all";
+
+    // 1️⃣ Check cache
+    const cachedData = await redisCacheService.get(cacheKey);
+    if (cachedData) {
+      console.log(`[CACHE HIT] ${cacheKey}`);
+      return res.json({
+        cached: true,
+        ...cachedData,
+      });
+    }
+    
+        
     // 1️⃣ Fetch unique sakhas (VID_ID + SAK_ID)
     const sakhas = await prisma.$queryRaw`
       SELECT
@@ -1275,12 +1475,18 @@ export const getBoothInSakha = async (req:any, res:any) => {
     }));
 
     // 6️⃣ Send Response with correct format
-    res.json({
+    const response ={
       totalLevelCount: sakhas.length,
       totalColumnCount: boothsData.length,
       countData: countData,
       detailedData: detailedData
-    });
+    };
+
+    // 2️⃣ Cache result (TTL 5 mins)
+    await redisCacheService.set(cacheKey, response, 86400 ); // 300s = 5 mins
+    console.log(`[CACHE SET] ${cacheKey}`);
+
+    return res.json(response);
 
   } catch (err) {
     console.error("Error in getBoothInSakha:", err);

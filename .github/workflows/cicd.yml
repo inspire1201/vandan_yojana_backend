@@ -16,6 +16,7 @@ jobs:
       DISTRICT_MAP_ID: ${{ secrets.DISTRICT_MAP_ID }}
       VIDHANSABHA_MAP_ID: ${{ secrets.VIDHANSABHA_MAP_ID }}
       LOKSABHA_MAP_ID: ${{ secrets.LOKSABHA_MAP_ID }}
+      REDIS_URL: ${{ secrets.REDIS_URL }}
     steps:
       # 1️⃣ Checkout repo in the runner (required to get actions workspace)
       - name: Checkout Source

@@ -1,40 +1,54 @@
-// import redisClient from "./redis";
-// class RedisCache {
-//   async setJSON(key: string, value: any, ttlSeconds?: number) {
-//     try {
-//       await redisClient.json.set(key, "$", value);
-//       if (ttlSeconds) await redisClient.expire(key, ttlSeconds);
-//     } catch (err) {
-//       console.error("Redis setJSON error:", err);
-//     }
-//   }
+import { redisClient, isRedisUp } from "./redis.js";
 
-//   async setJSONWithExpireAt(key: string, value: any, timestamp: number) {
-//     try {
-//       await redisClient.json.set(key, "$", value);
-//       await redisClient.expireAt(key, timestamp);
-//     } catch (err) {
-//       console.error("Redis setJSONWithExpireAt error:", err);
-//     }
-//   }
+class RedisCache {
+  prefix = "app:";
 
-//   async getJSON(key: string) {
-//     try {
-//       return await redisClient.json.get(key);
-//     } catch (err) {
-//       console.error("Redis getJSON error:", err);
-//       return null;
-//     }
-//   }
+  key(k: string) {
+    return `${this.prefix}${k}`;
+  }
 
-//   async del(key: string) {
-//     try {
-//       return await redisClient.del(key);
-//     } catch (err) {
-//       console.error("Redis del error:", err);
-//       return null;
-//     }
-//   }
-// }
+  async set(key: string, value: any, ttl?: number) {
+    if (!isRedisUp()) return;
 
-// export default new RedisCache();
+    try {
+      const serialized = typeof value === "string" ? value : JSON.stringify(value);
+
+      if (ttl)
+        await redisClient.set(this.key(key), serialized, { EX: ttl });
+      else
+        await redisClient.set(this.key(key), serialized);
+    } catch (err) {
+      console.error("Redis SET:", err);
+    }
+  }
+
+  async get<T = any>(key: string): Promise<T | null> {
+    if (!isRedisUp()) return null;
+
+    try {
+      const res = await redisClient.get(this.key(key));
+      if (!res) return null;
+
+      try {
+        return JSON.parse(res);
+      } catch {
+        return res as T;
+      }
+    } catch (err) {
+      console.error("Redis GET:", err);
+      return null;
+    }
+  }
+
+  async del(key: string) {
+    if (!isRedisUp()) return;
+
+    try {
+      await redisClient.del(this.key(key));
+    } catch (err) {
+      console.error("Redis DEL:", err);
+    }
+  }
+}
+
+export const redisCacheService = new RedisCache();

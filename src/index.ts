@@ -10,6 +10,7 @@ import { authRoute } from "./router/auth.route.js";
 import { userRoute } from "./router/user.route.js";
 import { adminRoute } from "./router/admin.route.js";
 import hierarchyRoute from "./router/hierarchy.route.js";
+import { initRedis, redisClient } from "./redis/redis.js";
 // import resetBoothFields, { fillDummyBlaData } from "./utils/fillDummyBlaData.js";
 // import updateBlocks from "./config/updateblocks.utils.js";
 
@@ -54,8 +55,7 @@ app.get("/health", (req:any, res:any) => {
 async function startServer() {
   try {
     await prisma.$connect(); // <-- Connect once
-  // fillDummyBlaData();
-    // resetBoothFields()
+   initRedis();
     console.log("✅ Prisma connected");
     app.listen(PORT, '0.0.0.0',() => {
       console.log(`Server running at http://localhost:${PORT}`);

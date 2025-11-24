@@ -1174,7 +1174,6 @@ export const getHierarchyData = async (req: any, res: any) => {
 
 export const getHierarchyDataMultiple = async (req: any, res: any) => {
   try {
-    
     // 1️⃣ Extract multi-select query params
     const parseMultiIds = (param?: string | string[]) => {
       // Robustly handle string, array, and comma-separated string inputs
