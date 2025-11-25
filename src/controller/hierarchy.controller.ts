@@ -1,5 +1,6 @@
 import prisma from "../prisma.js";
 import { Request, Response } from 'express';
+import { redisCacheService } from "../redis/cache.service.js";
 
 // Get all unique Clusters (Level 0)
 export const getClusters = async (req: any, res: any) => {
@@ -1172,8 +1173,297 @@ export const getHierarchyData = async (req: any, res: any) => {
 
 // Assuming 'prisma' is initialized and available globally or imported.
 
+// export const getHierarchyDataMultiple = async (req: any, res: any) => {
+//   try {
+    
+//     // 1️⃣ Extract multi-select query params
+//     const parseMultiIds = (param?: string | string[]) => {
+//       // Robustly handle string, array, and comma-separated string inputs
+//       if (Array.isArray(param)) {
+//         return param.map(id => parseInt(String(id))).filter(id => !isNaN(id));
+//       }
+//       return param ? String(param).split(",").map(id => parseInt(id)).filter(id => !isNaN(id)) : [];
+//     };
+
+//     const clusterIds = parseMultiIds(req.query.clusterId);
+//     const sambhagIds = parseMultiIds(req.query.sambhagId);
+//     const jilaIds = parseMultiIds(req.query.jilaId);
+//     const lokIdsFilter = parseMultiIds(req.query.lokId);
+//     const vidIdsFilter = parseMultiIds(req.query.vidId);
+//     const manIdsFilter = parseMultiIds(req.query.manId);
+//     const sakIdsFilter = parseMultiIds(req.query.sakhaId);
+//     const btIdsFilter = parseMultiIds(req.query.btId);
+
+//     // Identify the deepest level filter that has data
+//     const deepestFilterKey = btIdsFilter.length > 0 ? 'btId'
+//       : sakIdsFilter.length > 0 ? 'sakhaId'
+//       : manIdsFilter.length > 0 ? 'manId'
+//       : vidIdsFilter.length > 0 ? 'vidId'
+//       : lokIdsFilter.length > 0 ? 'lokId'
+//       : jilaIds.length > 0 ? 'jilaId'
+//       : sambhagIds.length > 0 ? 'sambhagId'
+//       : clusterIds.length > 0 ? 'clusterId'
+//       : null;
+
+//     // --- Start Building Hierarchy Root (Vidhan Sabha level and above) ---
+
+//     // 2️⃣ Handle Sambhag/Jila filters (smdata)
+//     let vidIdsFromJilaSambhag: number[] = [];
+//     const smDataWhere: any = {};
+    
+//     // Only query smdata if Sambhag or Jila IDs were explicitly selected
+//     if (sambhagIds.length || jilaIds.length) {
+//         if (sambhagIds.length) smDataWhere.SAM_ID = { in: sambhagIds }; 
+//         if (jilaIds.length) smDataWhere.JILA_ID = { in: jilaIds };
+        
+//         const smDataResults = await prisma.smdata.findMany({
+//             where: smDataWhere,
+//             distinct: ["VID_ID"],
+//             select: { VID_ID: true },
+//         });
+//         vidIdsFromJilaSambhag = smDataResults
+//             .map(d => d.VID_ID)
+//             .filter((id): id is number => id !== null);
+//     }
+    
+
+//     // 3️⃣ Build the final WHERE clause for fetching Lok Sabhas (cludata)
+//     const lokDataWhere: any = {};
+//     const cludataRootFilters: any[] = [];
+
+//     // Use selected Clusters as one root filter
+//     if (clusterIds.length) {
+//       cludataRootFilters.push({ CLUS_ID: { in: clusterIds } });
+//     }
+//     // Use VIDs derived from selected Sambhag/Jila as another root filter
+//     if (vidIdsFromJilaSambhag.length > 0) {
+//       cludataRootFilters.push({ VID_ID: { in: vidIdsFromJilaSambhag } });
+//     }
+    
+//     if (cludataRootFilters.length > 0) {
+//       // Combine Cluster/Sambhag/Jila-derived VIDs with OR logic
+//       lokDataWhere.OR = cludataRootFilters;
+//     }
+
+//     // Intersect with explicitly selected LOK IDs (AND logic)
+//     if (lokIdsFilter.length) {
+//       lokDataWhere.LOK_ID = { in: lokIdsFilter };
+//     }
+    
+//     // 4️⃣ Fetch unique Lok Sabhas that match the high-level filters
+//     const lokDataRaw: any[] = await prisma.cludata.findMany({
+//       where: lokDataWhere,
+//       distinct: ["LOK_ID", "CLUS_ID"],
+//       select: { CLUS_ID: true, LOK_ID: true, LOK_NM: true },
+//     });
+
+//     const lokIds = lokDataRaw.map(l => l.LOK_ID).filter((id): id is number => id !== null);
+//     if (lokIds.length === 0) {
+//       // Early exit
+//       return res.status(200).json({ success: true, summary: { cluster: 0, lokSabha: 0, vidhanSabha: 0, mandal: 0, sakha: 0, booth: 0 }, data: [] });
+//     }
+
+//     // 5️⃣ Determine the definitive list of Vidhan Sabhas (`vidIds`) to fetch data for
+//     const vidSabhaWhere: any = {
+//       LOK_ID: { in: lokIds }, // Start with all VIDs under the resulting LOKs
+//     };
+    
+//     // Apply explicit VID filters, if present
+//     if (vidIdsFilter.length > 0) {
+//         // Intersect the VIDs from the LOKs with the explicitly selected VIDs
+//         vidSabhaWhere.VID_ID = { in: vidIdsFilter };
+//     } else if (vidIdsFromJilaSambhag.length > 0) {
+//         // Intersect the VIDs from the LOKs with the VIDs derived from Jila/Sambhag
+//         vidSabhaWhere.VID_ID = { in: vidIdsFromJilaSambhag };
+//     }
+
+//     const vidhanData = await prisma.cludata.findMany({
+//       where: vidSabhaWhere,
+//       distinct: ["VID_ID", "LOK_ID"],
+//       select: { LOK_ID: true, VID_ID: true, VID_NM: true },
+//     });
+    
+//     const vidIds = vidhanData.map(v => v.VID_ID).filter((id): id is number => id !== null);
+
+//     // 6️⃣ FIX: Fetch Mandal/Sakha/Booth (Enforcing Hierarchical Uniqueness)
+//     // The query MUST filter by the precise list of VIDs (vidIds) calculated above.
+//     // This ensures no Booth data is pulled from a VID that was filtered out by Lok/Vid/Jila/Sambhag logic.
+//     const vddataWhere: any = {
+//       VID_ID: { in: vidIds.length > 0 ? vidIds : [-1] }, // Use [-1] if empty to prevent fetching all data
+//     };
+
+//     // Now, apply the lowest level filter to restrict data within the valid VIDs.
+//     if (deepestFilterKey === 'btId' && btIdsFilter.length) {
+//       vddataWhere.BT_ID = { in: btIdsFilter };
+//     } else if (deepestFilterKey === 'sakhaId' && sakIdsFilter.length) {
+//       vddataWhere.SAK_ID = { in: sakIdsFilter };
+//     } else if (deepestFilterKey === 'manId' && manIdsFilter.length) {
+//       vddataWhere.MAN_ID = { in: manIdsFilter };
+//     }
+
+//     // The combination of VID_ID filter and MAN/SAK/BT filter enforces the uniqueness you need.
+//     const manSakhaData = await prisma.vddata.findMany({
+//       where: vddataWhere,
+//       // We still use DISTINCT on the composite hierarchy keys for accurate counting later
+//       distinct: ["VID_ID", "MAN_ID", "SAK_ID", "BT_ID"], 
+//       select: {
+//         VID_ID: true, MAN_ID: true, MAN_NM: true, SAK_ID: true, SAK_NM: true, BT_ID: true, BT_NM: true,
+//       },
+//     });
+
+//     // 7️⃣ Build hierarchical mapping and calculate accurate counts
+//     const hierarchyMap = new Map<number, Map<number, Map<number, any[]>>>(); // VID_ID → MAN_ID → SAK_ID → [BT]
+//     const uniqueMandals = new Set<number>();
+//     const uniqueSakhas = new Set<number>();
+//     const uniqueBooths = new Set<number>();
+//     const finalVidhanSabhas = new Set<number>(); 
+    
+//     // To ensure unique counts even if the IDs (like MAN_ID) aren't globally unique:
+//     const uniqueMandalKeys = new Set<string>(); // VID_ID-MAN_ID
+//     const uniqueSakhaKeys = new Set<string>();  // VID_ID-MAN_ID-SAK_ID
+//     const uniqueBoothKeys = new Set<string>();  // VID_ID-MAN_ID-SAK_ID-BT_ID
+
+//     for (const item of manSakhaData) {
+//       if (!item.VID_ID || !item.MAN_ID || !item.SAK_ID || !item.BT_ID) continue; 
+      
+//       uniqueMandalKeys.add(`${item.VID_ID!}-${item.MAN_ID!}`);
+//       uniqueSakhaKeys.add(`${item.VID_ID!}-${item.MAN_ID!}-${item.SAK_ID!}`);
+//       uniqueBoothKeys.add(`${item.VID_ID!}-${item.MAN_ID!}-${item.SAK_ID!}-${item.BT_ID!}`);
+//       finalVidhanSabhas.add(item.VID_ID!);
+      
+//       // ... (rest of the mapping logic for finalData structure) ...
+//       if (!hierarchyMap.has(item.VID_ID)) hierarchyMap.set(item.VID_ID, new Map());
+//       const manMap = hierarchyMap.get(item.VID_ID)!;
+//       if (!manMap.has(item.MAN_ID)) manMap.set(item.MAN_ID, new Map());
+//       const sakMap = manMap.get(item.MAN_ID)!;
+//       if (!sakMap.has(item.SAK_ID)) sakMap.set(item.SAK_ID, []);
+//       sakMap.get(item.SAK_ID)!.push({ BT_ID: item.BT_ID, BT_NM: item.BT_NM });
+//     }
+
+//     // 8️⃣ Map Vidhan to Lok and build final structure (filtering LOKs/VIDs that resulted in no data)
+//     const lokToVidMap = new Map<number, any[]>();
+//     for (const vid of vidhanData) {
+//         if (!finalVidhanSabhas.has(vid.VID_ID!)) continue; // Filter out VIDs that yielded no booth data
+
+//         // ... (mapping logic unchanged from previous response) ...
+//         const manMap = hierarchyMap.get(vid.VID_ID!) || new Map();
+//         const mandales_sakha_booths = Array.from(manMap.entries()).map(([manId, sakMap]: [any, any]) => ({
+//             MAN_ID: manId,
+//             MAN_NM: manSakhaData.find(m => m.MAN_ID === manId && m.VID_ID === vid.VID_ID)?.MAN_NM || null, 
+//             sakhas: Array.from(sakMap.entries()).map((entry: any) => {
+//                 const [sakId, booths] = entry;
+//                 return {
+//                     SAK_ID: sakId,
+//                     SAK_NM: manSakhaData.find(m => m.SAK_ID === sakId && m.MAN_ID === manId)?.SAK_NM || null,
+//                     booths,
+//                 };
+//             }),
+//         })).filter(man => man.sakhas.length > 0); // Remove Mandals with no Sakha/Booths
+
+//         if (mandales_sakha_booths.length > 0) {
+//             if (!lokToVidMap.has(vid.LOK_ID!)) lokToVidMap.set(vid.LOK_ID!, []);
+//             lokToVidMap.get(vid.LOK_ID!)!.push({ vidId: vid.VID_ID!, vidName: vid.VID_NM, mandales_sakha_booths });
+//         }
+//     }
+    
+//     // Final structure
+//     const finalData = lokDataRaw
+//       .filter(lok => lokToVidMap.has(lok.LOK_ID!))
+//       .map(lok => ({
+//         clusterId: lok.CLUS_ID,
+//         lokId: lok.LOK_ID,
+//         lokName: lok.LOK_NM,
+//         vidhanSabhas: lokToVidMap.get(lok.LOK_ID!) || [],
+//       }));
+
+
+//     // 9️⃣ Summary counts using the composite keys for absolute uniqueness
+//     const finalLokSabhas = new Set(finalData.map(d => d.lokId)).size;
+//     const finalClusterCount = new Set(finalData.map(d => d.clusterId)).size;
+    
+//     let finalSambhagCount = 0;
+//     let finalJilaCount = 0;
+
+//     if (finalVidhanSabhas.size > 0) {
+//       const finalSmData = await prisma.smdata.findMany({
+//         where: { VID_ID: { in: Array.from(finalVidhanSabhas) } },
+//         select: { SAM_ID: true, JILA_ID: true },
+//         distinct: ['SAM_ID', 'JILA_ID']
+//       });
+//       finalSambhagCount = new Set(finalSmData.map(d => d.SAM_ID)).size;
+//       finalJilaCount = new Set(finalSmData.map(d => d.JILA_ID)).size;
+//     }
+
+//     const summary = {
+//       cluster: finalClusterCount,
+//       sambhag: finalSambhagCount,
+//       jila: finalJilaCount,
+//       lokSabha: finalLokSabhas,
+//       vidhanSabha: finalVidhanSabhas.size,
+//       mandal: uniqueMandalKeys.size, // Count based on VID-MAN combination
+//       sakha: uniqueSakhaKeys.size,   // Count based on VID-MAN-SAK combination
+//       booth: uniqueBoothKeys.size,   // Count based on VID-MAN-SAK-BT combination
+//     };
+
+//     return res.status(200).json({ success: true, summary, data: finalData });
+//   } catch (error) {
+//     console.error("Error in getHierarchyData:", error);
+//     res.status(500).json({ success: false, error: "Server Error" });
+//   }
+// };
+
+
+
+
+
+
+const generateHierarchyCacheKey = (query: any): string => {
+    // Define the specific parameters used for filtering
+    const filterKeys = ['clusterId', 'sambhagId', 'jilaId', 'lokId', 'vidId', 'manId', 'sakhaId', 'btId'];
+    
+    const relevantFilters: { [key: string]: string } = {};
+    
+    // 1. Extract and standardize (sort) relevant filter values
+    for (const key of filterKeys) {
+        if (query[key]) {
+            // Convert to array/string, sort, and join for a consistent value string
+            const value = Array.isArray(query[key]) 
+                ? [...query[key]].sort().join(',') 
+                : String(query[key]).split(',').sort().join(',');
+
+            if (value.length > 0) {
+                relevantFilters[key] = value;
+            }
+        }
+    }
+
+    // 2. Create a stable key by combining filter names and values in sorted order
+    const sortedFilterKeys = Object.keys(relevantFilters).sort();
+    const keyParts = sortedFilterKeys.map(key => `${key}:${relevantFilters[key]}`);
+    
+    // Return the final prefixed key
+    return `hierarchy:multiple:${keyParts.join('|')}`;
+};
+
+
+
 export const getHierarchyDataMultiple = async (req: any, res: any) => {
   try {
+
+
+    const cacheKey = generateHierarchyCacheKey(req.query);
+        const CACHE_TTL = 3600; // 1 hour TTL
+        
+        // 1. Check cache
+        const cachedData = await redisCacheService.get(cacheKey);
+        
+        if (cachedData) {
+            return res.status(200).json({ 
+                success: true, 
+                cached: true, 
+                ...cachedData 
+            });
+        }
     
     // 1️⃣ Extract multi-select query params
     const parseMultiIds = (param?: string | string[]) => {
@@ -1404,7 +1694,17 @@ export const getHierarchyDataMultiple = async (req: any, res: any) => {
       booth: uniqueBoothKeys.size,   // Count based on VID-MAN-SAK-BT combination
     };
 
-    return res.status(200).json({ success: true, summary, data: finalData });
+    // return res.status(200).json({ success: true, summary, data: finalData });
+
+    const responsePayload = {
+            summary,
+            data: finalData,
+        };
+
+        // 2. Cache the result 
+        await redisCacheService.set(cacheKey, responsePayload, CACHE_TTL);
+
+        return res.status(200).json({ success: true, cached: false, ...responsePayload });
   } catch (error) {
     console.error("Error in getHierarchyData:", error);
     res.status(500).json({ success: false, error: "Server Error" });

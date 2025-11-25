@@ -12,7 +12,7 @@ class RedisCache {
 
     try {
       const serialized = typeof value === "string" ? value : JSON.stringify(value);
-
+//  console.log("Redis SET:", this.key(key), serialized);
       if (ttl)
         await redisClient.set(this.key(key), serialized, { EX: ttl });
       else
